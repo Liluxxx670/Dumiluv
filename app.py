@@ -1,6 +1,14 @@
 import streamlit as st
 from groq import Groq
 
+st.markdown("""
+<style>
+h1 { color: #6a0dad !important; }
+h3 { color: #8a2be2 !important; }
+p, .stMarkdown { color: #4b0082 !important; }
+</style>
+""", unsafe_allow_html=True)
+
 st.set_page_config(page_title="Dumiluv 2.0", page_icon="📚", layout="centered")
 
 # --- ESTILO ---
@@ -50,6 +58,7 @@ if "messages" not in st.session_state:
 
 # --- TITULO ---
 st.title("📚 Dumiluv 2.0")
+st.image("dumiluv.png", width=250)
 if st.session_state.nombre:
     st.subheader(f"Hola {st.session_state.nombre} 💗, ¿qué vamos a aprender hoy?")
 else:
