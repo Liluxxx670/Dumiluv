@@ -122,15 +122,18 @@ if prompt:
         
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-# --- CONTACTO ---
+# --- CONTACTO FINAL CLICKEABLE ---
 st.divider()
 st.markdown("""
-<div style='text-align:center; color:#6a0dad; padding:15px; border:2px solid #e9d5ff; border-radius:15px; background:#faf5ff;'>
-<h4>💜 ¿Ocurrió alguna falla? 💜</h4>
+<div style='text-align:center; color:#4c1d95; padding:20px; border:2px solid #e9d5ff; border-radius:18px; background:#fdf4ff;'>
+
+<p style='font-size:24px; font-weight:bold;'>💜 ¿Ocurrió alguna falla? 💜</p>
 <p>Contáctanos a cualquiera de estos correos:</p>
-<p>📧 1: 7001467@etrr.edu.mx</p>
-<p>📧 2: 7001464@etrr.edu.mx</p>
-<p>📧 3: 7001451@etrr.edu.mx</p>
-<p>📧 4: 7001529@etrr.edu.mx</p>
+
+<p>📧 1: <a href="mailto:7001467@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001467@etrr.edu.mx</a></p>
+<p>📧 2: <a href="mailto:7001464@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001464@etrr.edu.mx</a></p>
+<p>📧 3: <a href="mailto:7001451@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001451@etrr.edu.mx</a></p>
+<p>📧 4: <a href="mailto:7001529@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001529@etrr.edu.mx</a></p>
+
 </div>
 """, unsafe_allow_html=True)
