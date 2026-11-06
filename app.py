@@ -121,3 +121,16 @@ if prompt:
         response_placeholder.markdown(full_response)
         
     st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+# --- CONTACTO ---
+st.divider()
+st.markdown("""
+<div style='text-align:center; color:#6a0dad; padding:15px; border:2px solid #e9d5ff; border-radius:15px; background:#faf5ff;'>
+<h4>💜 ¿Ocurrió alguna falla? 💜</h4>
+<p>Contáctanos a cualquiera de estos correos:</p>
+<p>📧 1: 7001467@etrr.edu.mx</p>
+<p>📧 2: 7001464@etrr.edu.mx</p>
+<p>📧 3: 7001451@etrr.edu.mx</p>
+<p>📧 4: 7001529@etrr.edu.mx</p>
+</div>
+""", unsafe_allow_html=True)
