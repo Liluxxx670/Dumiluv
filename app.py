@@ -1,112 +1,105 @@
 import streamlit as st
 from groq import Groq
 
-# 1. Configuración de la página
-st.set_page_config(
-    page_title="Dumiluv 2.0 - Tu Tutor Personal",
-    page_icon="💖",
-    layout="centered"
-)
+st.set_page_config(page_title="Dumiluv 2.0", page_icon="📚", layout="centered")
 
-# 2. Estilos visuales con temática rosada kawaii
+# --- ESTILO ---
 st.markdown("""
-    <style>
-    .stApp {
-        background-color: #fff0f5;
-    }
-    .main-header {
-        background: linear-gradient(135deg, #ff758c, #ff7eb3);
-        padding: 25px;
-        border-radius: 20px;
-        color: white;
-        text-align: center;
-        box-shadow: 0px 4px 15px rgba(255, 117, 140, 0.3);
-        margin-bottom: 25px;
-    }
-    .main-header h1 {
-        color: white !important;
-        margin: 0;
-        font-size: 2.3rem;
-    }
-    .main-header p {
-        font-size: 1.1rem;
-        opacity: 0.95;
-        margin-top: 8px;
-    }
-    .stChatMessage {
-        border-radius: 15px !important;
-        padding: 12px 18px !important;
-        margin-bottom: 10px !important;
-        box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05);
-    }
-    [data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #ffd1dc;
-    }
-    </style>
+<style>
+.stApp { background: #f8f9ff; }
+.ejemplo-card {
+    background: white;
+    padding: 15px;
+    border-radius: 15px;
+    border: 1px solid #e6e6ff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    cursor: pointer;
+    height: 110px;
+    transition: 0.2s;
+}
+.ejemplo-card:hover { transform: scale(1.02); border-color: #a48fff; }
+</style>
 """, unsafe_allow_html=True)
 
-# 3. Encabezado visual con la imagen de Dumiluv y título rosado
-col_img, col_txt = st.columns([1, 3])
-with col_img:
-    try:
-        st.image("dumiluv.png", width=120)
-    except:
-        st.write("💖")
+# --- NOMBRE DEL USUARIO ---
+if "nombre" not in st.session_state:
+    st.session_state.nombre = ""
 
-with col_txt:
-    st.markdown("""
-        <div class="main-header" style="margin-bottom: 0px; padding: 15px;">
-            <h1>✨ Dumiluv 2.0 ✨</h1>
-            <p>💖 Tu tierno tutor escolar en la nube</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.write("---")
-
-# 4. Configuración de la API Key
-api_key = st.secrets.get("GROQ_API_KEY", None)
+with st.sidebar:
+    st.title("💗 Dumiluv 2.0")
+    st.session_state.nombre = st.text_input("¿Cómo te llamas?", value=st.session_state.nombre, placeholder="Ej: Lili")
+    st.divider()
+    api_key = st.secrets.get("GROQ_API_KEY", None)
+    if not api_key:
+        api_key = st.text_input("Groq API Key:", type="password")
+    st.caption("Tu tutor 100% en la nube ☁️")
 
 if not api_key:
-    with st.sidebar:
-        st.header("⚙️ Configuración")
-        api_key = st.text_input("Ingresa tu Groq API Key:", type="password")
-        st.info("💡 Consejo: Agrega la clave a st.secrets en Streamlit Cloud.")
-
-if not api_key:
-    st.warning("⚠️ Por favor ingresa tu API Key para comenzar a chatear con Dumiluv.")
+    st.info("👋 Configura tu GROQ_API_KEY en Secrets para comenzar.")
     st.stop()
 
 client = Groq(api_key=api_key)
 
-# 5. Historial y personalidad de tutor tierno
+nombre_display = st.session_state.nombre if st.session_state.nombre else "tú"
+saludo_nombre = f"Te llamarás {st.session_state.nombre}. Úsalo para personalizar tus respuestas de forma cálida." if st.session_state.nombre else "El usuario no ha dado su nombre, sé amable y pregunta su nombre si es natural."
+
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {
-            "role": "system", 
-            "content": "Eres Dumiluv, un personaje tierno, dulce, empático y muy inteligente. Eres un tutor de preparatoria que ayuda a los estudiantes a resolver dudas de matemáticas, física y ciencias con amor, paciencia, viñetas y emojis rosados o tiernos."
-        }
+        {"role": "system", "content": f"Eres Dumiluv 2.0, un tutor de preparatoria amable, claro, experto en matemáticas, física, química y ciencias. Explicas paso a paso. {saludo_nombre} Siempre motivas al estudiante. Habla en español."}
     ]
 
-# 6. Mostrar el historial del chat usando la imagen de Dumiluv como avatar del asistente
+# --- TITULO ---
+st.title("📚 Dumiluv 2.0")
+if st.session_state.nombre:
+    st.subheader(f"Hola {st.session_state.nombre} 💗, ¿qué vamos a aprender hoy?")
+else:
+    st.subheader("Tu tutor de prepa 100% libre en la nube")
+
+# --- SI NO HAY CHAT, MUESTRA LOS 4 CUADROS ---
+if len(st.session_state.messages) == 1:
+    st.write(f"¡Hola {nombre_display}! Elige un ejemplo para empezar 👇")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📐 ¿Cómo resuelvo x² -5x +6 =0 paso a paso?", use_container_width=True):
+            st.session_state.ejemplo = "¿Cómo resuelvo x² -5x +6 =0 paso a paso? Explícame como si fuera mi primera vez"
+            st.rerun()
+        if st.button("⚛️ Explícame la 2da Ley de Newton con un ejemplo real", use_container_width=True):
+            st.session_state.ejemplo = "Explícame la 2da Ley de Newton con un ejemplo de la vida real y un ejercicio"
+            st.rerun()
+    with col2:
+        if st.button("🧪 ¿Cómo balanceo C2H6 + O2 -> CO2 + H2O?", use_container_width=True):
+            st.session_state.ejemplo = "¿Cómo balanceo la ecuación química C2H6 + O2 -> CO2 + H2O? Enséñame paso a paso"
+            st.rerun()
+        if st.button("📈 ¿Qué es una derivada y para qué sirve?", use_container_width=True):
+            st.session_state.ejemplo = "¿Qué es una derivada y para qué sirve? Dame un ejemplo fácil"
+            st.rerun()
+
+# --- MOSTRAR HISTORIAL ---
 for message in st.session_state.messages:
     if message["role"] != "system":
-        avatar = "dumiluv.png" if message["role"] == "assistant" else "👤"
-        with st.chat_message(message["role"], avatar=avatar):
+        with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# 7. Entrada de chat del usuario con respuestas en tiempo real
-if prompt := st.chat_input("Escribe tu duda escolar aquí..."):
+# --- MANEJO DE PROMPT ---
+prompt = None
+if "ejemplo" in st.session_state:
+    prompt = st.session_state.ejemplo
+    del st.session_state["ejemplo"]
+else:
+    prompt = st.chat_input(f"Escribe tu duda, {nombre_display}...")
+
+if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user", avatar="👤"):
+    with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant", avatar="dumiluv.png"):
+    with st.chat_message("assistant"):
         response_placeholder = st.empty()
         full_response = ""
         
         completion = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
+            model="openai/gpt-oss-20b", # CAMBIADO: este sí existe y es gratis
             messages=st.session_state.messages,
             stream=True
         )
