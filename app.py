@@ -53,7 +53,7 @@ saludo_nombre = f"Te llamarás {st.session_state.nombre}. Úsalo para personaliz
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": ""
+        {"role": "system", "content": """
 Eres Dumiluv 2.0, tutora de prepa amable pero muy atenta a los detalles.
 
 REGLAS OBLIGATORIAS:
@@ -65,7 +65,7 @@ REGLAS OBLIGATORIAS:
 6. Habla en español, en tonos morados, motivadora.
 
 Objetivo: Que el alumno aprenda a escribir bien sus ejercicios.
-""}
+"""}
     ]
 
 # --- TITULO ---
