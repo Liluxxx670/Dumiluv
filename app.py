@@ -362,7 +362,9 @@ avatar = ""
 img = (
     f"<img class='chat-avatar' src='{avatar}'>"
     if avatar
-    else "<div class='chat-avatar' style='display:flex;align-items:center;justify-content:center;'>💗</div>"
+    else "<div class='chat-avatar'
+    style='display:flex;align-items:center;justify-conten
+    t:center;'>💗</div>"
 )
 r;'>💗</div>")
 bubble = f"<div class='chat-bubble {role}'>{content}</div>"
