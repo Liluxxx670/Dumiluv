@@ -31,7 +31,7 @@ if "voz_activa" not in st.session_state: st.session_state.voz_activa = True
 if "show_notas" not in st.session_state: st.session_state.show_notas = False
 if "conv_id" not in st.session_state: st.session_state.conv_id = None
 if "messages" not in st.session_state: st.session_state.messages = []
-if "notas_pages" not in st.session_state: st.session_state.notas_pages = [{"id":"1","title":"Hoja 1","text":"","drawing":None}]
+if "notas_pages" not in st.session_state: st.session_state.notas_pages = [{"id":"1","title":"Hoja 1","text":""}]
 if "notas_idx" not in st.session_state: st.session_state.notas_idx = 0
 
 TEMAS = {
@@ -48,7 +48,7 @@ st.markdown("""
 header, footer {visibility:hidden;}
 div[data-testid="stVerticalBlockBorderWrapper"] {background: transparent !important; border: none !important; box-shadow: none !important;}
 
-/* BOTONES COMBINAN CON TEMA - NADA NEGRO */
+/* BOTONES - combinan con tema, nada negro */
 div[data-testid="stButton"] > button, button[kind="primary"], button[kind="secondary"] {
     background: %s !important;
     color: #000000 !important;
@@ -59,17 +59,59 @@ div[data-testid="stButton"] > button, button[kind="primary"], button[kind="secon
 }
 div[data-testid="stButton"] > button * {color: #000000 !important;}
 
-/* CHAT INPUT ROSITA DEL TEMA */
+/* QUITAR NEGRO DE TODO: chat input, audio, file uploader, selectbox, text input, textarea */
 div[data-testid="stChatInput"] {
     background: %s !important;
     border: 3px solid #4a2c5e !important;
     border-radius: 18px !important;
     box-shadow: 4px 4px 0 #4a2c5e !important;
 }
-div[data-testid="stChatInput"] textarea {background: white !important; color: black !important; font-weight:700 !important;}
-div[data-testid="stTextInput"] input {background: white !important; border: 2.5px solid #4a2c5e !important; color: black !important; font-weight:700 !important;}
+div[data-testid="stChatInput"] textarea {
+    background: white !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+    font-size: 15px !important;
+}
+div[data-testid="stAudio"] {
+    background: white !important;
+    border: 2.5px solid #4a2c5e !important;
+    border-radius: 12px !important;
+    box-shadow: 3px 3px 0 #4a2c5e !important;
+}
+div[data-testid="stFileUploader"] {
+    background: white !important;
+    border: 3px solid #4a2c5e !important;
+    border-radius: 14px !important;
+    box-shadow: 3px 3px 0 #4a2c5e !important;
+}
+div[data-testid="stFileUploader"] * {
+    color: #000000 !important;
+    font-weight: 800 !important;
+}
+div[data-testid="stSelectbox"] > div, div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+    background: white !important;
+    border: 2.5px solid #4a2c5e !important;
+    border-radius: 10px !important;
+}
+div[data-testid="stSelectbox"] * {
+    color: #000000 !important;
+    font-weight: 800 !important;
+}
+div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea {
+    background: white !important;
+    border: 2.5px solid #4a2c5e !important;
+    border-radius: 10px !important;
+    color: #000000 !important;
+    font-weight: 800 !important;
+    font-size: 15px !important;
+}
+div[data-testid="stTextInput"] label, div[data-testid="stTextArea"] label, div[data-testid="stSelectbox"] label, div[data-testid="stFileUploader"] label {
+    color: #000000 !important;
+    font-weight: 900 !important;
+    font-size: 14px !important;
+}
 
-/* BUBBLES WHATSAPP */
+/* BUBBLES WHATSAPP - dentro del recuadro */
 .chat-row {display:flex; width:100%%; margin-bottom:10px;}
 .chat-row.user {justify-content: flex-end;}
 .chat-row.assistant {justify-content: flex-start;}
@@ -79,14 +121,15 @@ div[data-testid="stTextInput"] input {background: white !important; border: 2.5p
     border-radius: 18px;
     border: 2.5px solid #4a2c5e;
     box-shadow: 3px 3px 0 #4a2c5e;
-    font-weight: 600;
-    color: #000;
+    font-weight: 700;
+    color: #000000;
     word-wrap: break-word;
     line-height: 1.4;
+    font-size: 14px;
 }
 .bubble.user {background: %s; border-bottom-right-radius: 4px;}
 .bubble.assistant {background: white; border-bottom-left-radius: 4px;}
-.bubble b, .bubble strong {color: %s !important; font-weight: 900 !important; font-size: 1.05em;}
+.bubble b {color: %s !important; font-weight: 900 !important;}
 </style>
 """ % (C['bg'], C['btn'], C['btn'], C['card'], C['strong']), unsafe_allow_html=True)
 
@@ -126,7 +169,6 @@ if not st.session_state.usuario:
                     st.session_state.nombre_display = new_display or new_u
                     st.rerun()
     st.stop()
-
 data = load_data()
 if st.session_state.usuario not in data:
     data[st.session_state.usuario] = {"pass": "", "display": st.session_state.usuario, "avatar_path": "", "convs": {}}
@@ -160,27 +202,32 @@ client = Groq(api_key=api_key)
 MODELO = "openai/gpt-oss-20b"
 
 SYSTEM_PROMPT = """
-Eres Dumiluv, tutora de ALGEBRA kawaii para %s. Muy tierna.
+Eres Dumiluv, tutora de MATEMATICAS kawaii para %s. Ayudas en TODO tipo de matematicas: aritmetica, algebra, geometria, ecuaciones, problemas de texto, fracciones, porcentajes, todo lo que sea numeros.
 
-REGLAS OBLIGATORIAS PARA TODAS LAS RESPUESTAS:
-1. NUNCA des resultado final. Guia.
-2. SIEMPRE explica el POR QUE de cada paso, no solo que hacer. Usa analogias simples (manzanas, pasteles, dinero).
-   Ejemplo general: Si tienes 2x + 5x = 7x POR QUE? Porque ambos tienen x, son como 2 manzanas + 5 manzanas = 7 manzanas. Si multiplicas, divides, etc, explica por que la operacion inversa deshace la anterior.
-   Si es ecuacion x+5=12 POR QUE restas 5? Porque 5 esta sumando a x y para dejar x sola necesitas hacer lo contrario, quitar 5 de ambos lados para mantener balance.
-3. Cuando usuario diga NOSE, NO SE, PISTA, AYUDA, EXPLICAME: responde en este formato EXACTO con negritas:
+NUNCA rechaces un problema matematico. 4+67, 2+2, 100/5, todo lo resuelves guiando.
+Solo rechaza si es claramente NO matematico (ej: historia, ingles, chismes).
+
+TU FORMA DE ENSENAR - SOCRATICA CON POR QUE:
+1. NUNCA des resultado final directo. Guia paso a paso.
+2. SIEMPRE explica el POR QUE de cada operacion. Ej: "Sumamos 3x + x = 4x POR QUE? Porque ambos tienen x, es como 3 manzanas + 1 manzana = 4 manzanas" / "Dividimos entre 4 POR QUE? Porque 4x significa 4 veces x, para saber cuanto vale 1 sola x tienes que repartir en 4 partes iguales"
+3. Si usuario dice NOSE, PISTA, AYUDA, EXPLICAME: responde asi:
    **Pista**
    (pista corta)
    **Pequeña explicacion del por que**
-   (explica por que se hace esa operacion, con analogia)
+   (explica el por que matematico con analogia simple)
    **Pregunta mas facil para ti**
-   (pregunta que le haga hacer algo, no dar respuesta)
+   (pregunta que le haga calcular algo chiquito)
 
-4. Usa negritas para titulos, seran de color fuerte del tema.
+4. Usa negritas para titulos, seran de color fuerte.
 
-Solo algebra. Si no es algebra di: Lo siento %s solo puedo ayudarte con algebra!
-PROHIBIDO LaTeX: escribe x^2, x + 3x = 4x, 4x = 40. Nunca $.
-Max 6 lineas por bloque.
+Ejemplo para 4+67:
+No digas "71" directo. Di: "Vamos juntas! 4+67, primero junta las unidades: 7+4=? Cuando tengas eso, le sumas las decenas... Cuanto te da 7+4?"
+
+Solo matematicas. Si es no matematico di: Lo siento %s, solo puedo ayudarte con matematicas, pero con mucho amor!
+Escribe x^2, x + 3x = 4x, 4x=40. Nunca uses $.
+Corta, kawaii, max 6 lineas.
 """ % (st.session_state.nombre_display, st.session_state.nombre_display)
+
 with st.container():
     st.markdown("<div style='background:%s; border:4px solid #4a2c5e; border-radius:18px; padding:10px; text-align:center; font-weight:900; box-shadow:5px 5px 0 #4a2c5e; color:#4a2c5e;'>Dumiluv - %s</div>" % (C['header'], st.session_state.nombre_display), unsafe_allow_html=True)
     st.write("")
@@ -208,7 +255,8 @@ with st.container():
 
 if st.session_state.show_ajustes:
     with st.container():
-        st.markdown("<div style='background:white; border:3px solid #4a2c5e; border-radius:14px; padding:12px; box-shadow:4px 4px 0 #4a2c5e;'><b>Ajustes - Temas 💜</b></div>", unsafe_allow_html=True)
+        st.markdown("<div style='background:white; border:3px solid #4a2c5e; border-radius:14px; padding:12px; box-shadow:4px 4px 0 #4a2c5e;'><b style='color:#000;'>Ajustes - Temas 💜</b></div>", unsafe_allow_html=True)
+        st.write("")
         if os.path.exists("dumiluv.png"):
             st.image("dumiluv.png", width=120)
         nuevo_nombre = st.text_input("Como te digo?", value=st.session_state.nombre_display)
@@ -216,7 +264,7 @@ if st.session_state.show_ajustes:
         if sel != st.session_state.tema:
             st.session_state.tema = sel
             st.rerun()
-        up = st.file_uploader("Foto galeria", type=["png","jpg","jpeg"])
+        up = st.file_uploader("Foto de galeria", type=["png","jpg","jpeg"])
         if up:
             ext = up.name.split(".")[-1]
             path = os.path.join(AVATAR_FOLDER, f"{st.session_state.usuario}.{ext}")
@@ -254,46 +302,41 @@ with left:
 with center:
     if st.session_state.show_notas:
         with st.container():
-            st.markdown("<div style='background:white; border:3px solid #4a2c5e; border-radius:14px; padding:10px; box-shadow:4px 4px 0 #4a2c5e; margin-bottom:8px;'><b>📒 Libretita - %d hojas</b></div>" % len(st.session_state.notas_pages), unsafe_allow_html=True)
+            st.markdown("<div style='background:white; border:3px solid #4a2c5e; border-radius:14px; padding:10px; box-shadow:4px 4px 0 #4a2c5e; margin-bottom:8px;'><b style='color:#000;'>📒 Libretita - %d hojas</b></div>" % len(st.session_state.notas_pages), unsafe_allow_html=True)
             col_n1, col_n2, col_n3 = st.columns([2,1,1])
             with col_n1:
                 titulos = [p["title"] for p in st.session_state.notas_pages]
-                sel_page = st.selectbox("Hoja", titulos, index=st.session_state.notas_idx)
+                sel_page = st.selectbox("Hoja", titulos, index=st.session_state.notas_idx, key="sel_hoja")
                 st.session_state.notas_idx = titulos.index(sel_page)
             with col_n2:
-                if st.button("➕ Nueva hoja", use_container_width=True):
+                if st.button("Nueva hoja", use_container_width=True, key="btn_new"):
                     nid = str(len(st.session_state.notas_pages)+1)
-                    st.session_state.notas_pages.append({"id":nid,"title":"Hoja %s" % nid,"text":"","drawing":None})
+                    st.session_state.notas_pages.append({"id":nid,"title":"Hoja %s" % nid,"text":""})
                     st.session_state.notas_idx = len(st.session_state.notas_pages)-1
                     st.rerun()
             with col_n3:
-                if st.button("🗑️ Borrar", use_container_width=True):
+                if st.button("Borrar hoja", use_container_width=True, key="btn_del"):
                     if len(st.session_state.notas_pages) > 1:
                         st.session_state.notas_pages.pop(st.session_state.notas_idx)
                         st.session_state.notas_idx = max(0, st.session_state.notas_idx-1)
                         st.rerun()
-
             current = st.session_state.notas_pages[st.session_state.notas_idx]
-            current["text"] = st.text_area("✍️ Escribe aqui", value=current["text"], height=120, key="txt_%s" % current["id"], placeholder="Escribe tus apuntes, formulas...")
-            
-            tab_dib, tab_txt = st.tabs(["🎨 Dibujar", "📝 Solo texto"])
-            with tab_dib:
-                modo = st.radio("Herramienta", ["Lapiz", "Borrador"], horizontal=True, label_visibility="collapsed", key="modo_%s" % current["id"])
-                sc = "#111" if "Lapiz" in modo else "#ffffff"
-                sw = 3 if "Lapiz" in modo else 20
-                st_canvas(stroke_width=sw, stroke_color=sc, background_color="#fff", height=200, drawing_mode="freedraw", key="c_%s" % current["id"])
-            with tab_txt:
-                st.info("Usa el cuadro de arriba para escribir. Esta hoja se guarda sola mientras escribes 💜")
-            
-            if st.button("Cerrar libretita"):
+            current["text"] = st.text_area("Escribe aqui", value=current["text"], height=120, key="txt_%s" % current["id"], placeholder="Escribe tus apuntes...")
+            st.write("")
+            modo = st.radio("Herramienta dibujo", ["Lapiz", "Borrador"], horizontal=True, label_visibility="collapsed", key="modo_%s" % current["id"])
+            sc = "#111" if "Lapiz" in modo else "#ffffff"
+            sw = 3 if "Lapiz" in modo else 20
+            st_canvas(stroke_width=sw, stroke_color=sc, background_color="#fff", height=180, drawing_mode="freedraw", key="c_%s" % current["id"])
+            if st.button("Cerrar libretita", key="btn_close"):
                 st.session_state.show_notas = False
                 st.rerun()
 
-    st.markdown("<div style='background:%s; border:4px solid #4a2c5e; border-radius:18px; padding:12px; box-shadow:6px 6px 0 #4a2c5e; min-height:450px;'>" % C['chat'], unsafe_allow_html=True)
-    st.markdown("<div style='background:%s; border:3px solid #4a2c5e; border-radius:14px; padding:8px; text-align:center; font-weight:900; color:#4a2c5e; margin-bottom:10px;'>Dumiluv 💜</div>" % C['header'], unsafe_allow_html=True)
+    # AQUI ESTA EL RECUADRO ROSA GRANDOTE - TODO ADENTRO
+    st.markdown("<div style='background:%s; border:4px solid #4a2c5e; border-radius:18px; padding:12px; box-shadow:6px 6px 0 #4a2c5e; min-height:500px;'>" % C['chat'], unsafe_allow_html=True)
+    st.markdown("<div style='background:%s; border:3px solid #4a2c5e; border-radius:14px; padding:8px; text-align:center; font-weight:900; color:#4a2c5e; margin-bottom:12px;'>Dumiluv 💜</div>" % C['header'], unsafe_allow_html=True)
 
     if not st.session_state.messages:
-        st.markdown("<p style='color:#000; text-align:center; font-weight:800;'>Hola %s Que resolvemos hoy?</p>" % st.session_state.nombre_display, unsafe_allow_html=True)
+        st.markdown("<p style='color:#000; text-align:center; font-weight:800;'>Hola %s Que resolvemos hoy? 💖</p>" % st.session_state.nombre_display, unsafe_allow_html=True)
         cc1, cc2 = st.columns(2)
         with cc1:
             st.markdown("<div style='background:%s; border:2.5px solid #4a2c5e; border-radius:12px; padding:8px; text-align:center; font-size:11px; font-weight:800; color:#000; box-shadow:3px 3px 0 #4a2c5e; margin-bottom:6px;'>x^2 -5x +6 =0</div>" % C['card'], unsafe_allow_html=True)
@@ -312,10 +355,10 @@ with center:
                 if not st.session_state.conv_id: nueva_conversacion()
                 st.session_state.messages.append({"role":"user","content":"Una pera cuesta 2 mas que una manzana y 3 peras y 2 manzanas cuestan 20"})
                 st.rerun()
-            st.markdown("<div style='background:%s; border:2.5px solid #4a2c5e; border-radius:12px; padding:8px; text-align:center; font-size:11px; font-weight:800; color:#000; box-shadow:3px 3px 0 #4a2c5e; margin-bottom:6px;'>C2H6 + O2</div>" % C['card'], unsafe_allow_html=True)
+            st.markdown("<div style='background:%s; border:2.5px solid #4a2c5e; border-radius:12px; padding:8px; text-align:center; font-size:11px; font-weight:800; color:#000; box-shadow:3px 3px 0 #4a2c5e; margin-bottom:6px;'>4+67</div>" % C['card'], unsafe_allow_html=True)
             if st.button("Usar 4", key="e4", use_container_width=True):
                 if not st.session_state.conv_id: nueva_conversacion()
-                st.session_state.messages.append({"role":"user","content":"Balancea C2H6 + O2 -> CO2 + H2O"})
+                st.session_state.messages.append({"role":"user","content":"4+67"})
                 st.rerun()
     else:
         for m in st.session_state.messages:
@@ -333,7 +376,6 @@ with center:
                 pass
 
     st.markdown("</div>", unsafe_allow_html=True)
-
     st.write("")
     prompt = st.chat_input("Escribe aqui... 💖")
     if prompt:
@@ -354,7 +396,7 @@ with right:
     with st.container():
         st.markdown("<div style='background:%s; border:3px solid #4a2c5e; border-radius:14px; padding:8px; text-align:center; font-weight:900; color:#4a2c5e; box-shadow:3px 3px 0 #4a2c5e; margin-bottom:8px;'>Chat History</div>" % C['header'], unsafe_allow_html=True)
         if not convs:
-            st.markdown("<div style='background:white; border:2.5px solid #4a2c5e; border-radius:12px; padding:10px; text-align:center; box-shadow:3px 3px 0 #4a2c5e;'><p style='color:#000; font-size:12px;'>En blanco</p></div>", unsafe_allow_html=True)
+            st.markdown("<div style='background:white; border:2.5px solid #4a2c5e; border-radius:12px; padding:10px; text-align:center; box-shadow:3px 3px 0 #4a2c5e;'><p style='color:#000; font-size:12px; font-weight:800;'>En blanco</p></div>", unsafe_allow_html=True)
         else:
             for cid, cdata in sorted(convs.items(), key=lambda x: x[1].get("date",""), reverse=True)[:8]:
                 if st.button("%s %s" % (cdata['date'], cdata['title'][:20]), key="h_%s" % cid, use_container_width=True):
