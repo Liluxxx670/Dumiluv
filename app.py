@@ -366,7 +366,6 @@ img = (
     style='display:flex;align-items:center;justify-conten
     t:center;'>💗</div>"
 )
-r;'>💗</div>")
 bubble = f"<div class='chat-bubble {role}'>{content}</div>"
 name = safe_text(display_name)if role == "user" else "Dumiluv"
 if role == "user":
