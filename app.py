@@ -346,12 +346,12 @@ def render_chat(messages, user_avatar, assistant_avatar, display_name):
 pieces = ["<div class='chat-scroll'>"]
 if not messages:
 pieces.append(
-"<div style='text-align:center;padding:55px 10px;color:var(--ink);'>"
-
-"<div style='font-size:35px;'>💗✨🌷</div>"
-f"<h3>¡Hola {safe_text(display_name)}!</h3>"
-"<p>¿Qué resolvemos hoy?</p><p>Prueba una suma, una resta o una ecuación.</p
-></div>"
+    "<div style='text-align:center;padding:55px 10px;color:var(--ink);'>"
+    "<div style='font-size:35px;'>💗✨🌷</div>"
+    f"<h3>¡Hola {safe_text(display_name)}!</h3>"
+    "<p>¿Qué resolvemos hoy?</p>"
+    "<p>Prueba una suma, una resta o una ecuación.</p>"
+    "</div>"
 )
 for msg in messages:
 role = "user" if msg.get("role") == "user" else "assistant"
@@ -359,11 +359,11 @@ content = safe_text(msg.get("content", "")).replace("\n", "<br>")
 avatar = user_avatar if role == "user" else assistant_avatar
 if not avatar:
 avatar = ""
-img = (f"<img class='chat-avatar' src='{avatar}'>" if avatar else
-"<div class='chat-avatar' style='display:
-
-ex;align-items:center;justify-content:cente
-
+img = (
+    f"<img class='chat-avatar' src='{avatar}'>"
+    if avatar
+    else "<div class='chat-avatar' style='display:flex;align-items:center;justify-content:center;'>💗</div>"
+)
 r;'>💗</div>")
 bubble = f"<div class='chat-bubble {role}'>{content}</div>"
 name = safe_text(display_name)if role == "user" else "Dumiluv"
