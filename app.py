@@ -326,12 +326,18 @@ if not st.session_state.messages or not st.session_state.conv_id:
 return
 data = load_data()
 info = ensure_user_record(data, st.session_state.usuario)
-rst = next((m["content"][:35]for m in st.session_state.messages if m["role"] == "user"), "
-Nueva charla")
-date_label = datetime.datetime.now().strftime("%d/%m %H:%M")
+rst = next(
+    (m["content"][:35]for m in
+     st.session_state.messages if m["role"] == "user"),
+    "Nueva charla"
+)
+
+date_label =
+datetime.datetime.now().strftime("%d/%m %H:%M")
 info["convs"][st.session_state.conv_id] = {
-"title":
-rst, "date": date_label, "messages": st.session_state.messages
+"title":rst, 
+    "date": date_label, 
+    "messages": st.session_state.messages
 
 }
 save_data(data)
