@@ -2,11 +2,15 @@ import streamlit as st
 from groq import Groq
 from gtts import gTTS
 from streamlit_drawable_canvas import st_canvas
+from PIL import Image
 import json, os, re, hashlib, datetime, uuid
 
 st.set_page_config(page_title="Dumiluv", page_icon="💗", layout="wide")
 
 USERS_FILE = "users.json"
+AVATAR_FOLDER = "avatars"
+os.makedirs(AVATAR_FOLDER, exist_ok=True)
+
 def load_data():
     if os.path.exists(USERS_FILE):
         try:
@@ -15,9 +19,11 @@ def load_data():
         except:
             return {}
     return {}
+
 def save_data(d):
     with open(USERS_FILE, "w") as f:
         json.dump(d, f)
+
 def hash_pass(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
@@ -27,6 +33,8 @@ if "usuario" not in st.session_state:
     st.session_state.usuario = ""
 if "nombre_display" not in st.session_state:
     st.session_state.nombre_display = ""
+if "show_ajustes" not in st.session_state:
+    st.session_state.show_ajustes = False
 if "voz_activa" not in st.session_state:
     st.session_state.voz_activa = False
 if "show_notas" not in st.session_state:
@@ -37,63 +45,44 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 COLORES = {
-    "purple": {"bg":"#c4a3e6", "bg_dark":"#a87de0", "header":"#d896ff"},
-    "blue": {"bg":"#9ec8ff", "bg_dark":"#6aa8ff", "header":"#60a5fa"},
-    "green": {"bg":"#8ee8a3", "bg_dark":"#5bd67d", "header":"#4ade80"},
-    "orange": {"bg":"#ffcc8a", "bg_dark":"#ffb259", "header":"#fb923c"},
+    "purple": {"bg":"#b18ef0", "header":"#e3a8ff"},
+    "blue": {"bg":"#8ec5ff", "header":"#7dd3ff"},
+    "green": {"bg":"#8be49a", "header":"#86efac"},
+    "orange": {"bg":"#ffb86a", "header":"#fdba74"},
 }
 C = COLORES[st.session_state.tema]
 
 st.markdown(f"""
 <style>
-.stApp {{
-    background: {C['bg_dark']} !important;
-    background-image: radial-gradient({C['bg']} 2px, transparent 2px);
-    background-size: 28px 28px;
-}}
+.stApp {{background: {C['bg']} !important;}}
 header, footer {{visibility:hidden;}}
-* {{ color: #111 !important; }}
 div[data-testid="stVerticalBlockBorderWrapper"] {{
     background: white !important;
     border: 3px solid #222 !important;
-    border-radius: 16px !important;
-    box-shadow: 7px 7px 0 #222 !important;
+    border-radius: 18px !important;
+    box-shadow: 6px 6px 0 #222 !important;
 }}
 div[data-testid="stChatMessage"] {{
     background: white !important;
-    border: 2.5px solid #222 !important;
+    border: 2px solid #222 !important;
     border-radius: 14px !important;
-    box-shadow: 4px 4px 0 #222 !important;
 }}
-div[data-testid="stButton"] button, div[data-testid="stFormSubmitButton"] button {{
-    background: {C['header']} !important;
-    color: #111 !important;
-    border: 2.5px solid #222 !important;
-    border-radius: 12px !important;
-    font-weight: 900 !important;
-    box-shadow: 4px 4px 0 #222 !important;
-}}
-div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea {{
-    background: white !important;
-    color: #111 !important;
-    border: 2.5px solid #222 !important;
-}}
-.header-gamer {{
-    background:{C['header']};
-    border:2.5px solid #222;
-    border-radius:12px;
-    padding:10px;
-    text-align:center;
-    font-weight:900;
-    font-size:11px;
+.header-box {{
+    background: {C['header']};
+    border: 2.5px solid #222;
+    border-radius: 12px;
+    padding: 8px;
+    text-align: center;
+    font-weight: 900;
     box-shadow: 3px 3px 0 #222;
+    color: #111;
 }}
 </style>
 """, unsafe_allow_html=True)
 
 # LOGIN - AUTO ENTRA AL CREAR
 if not st.session_state.usuario:
-    st.markdown(f"<div class='header-gamer'>⭐ Dumiluv - Entrar ✨</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='header-box'>⭐ Dumiluv - Entrar ✨</div>", unsafe_allow_html=True)
     with st.container(border=True):
         tab1, tab2 = st.tabs(["🔐 Entrar", "✨ Crear"])
         data = load_data()
@@ -110,21 +99,21 @@ if not st.session_state.usuario:
                 else:
                     st.error("Mal usuario o pass")
         with tab2:
-            new_u = st.text_input("Usuario nuevo (letras, números, . _)", key="nu")
+            new_u = st.text_input("Usuario nuevo (solo letras, números, . _)", key="nu")
             new_display = st.text_input("¿Cómo te digo? Ej: Liz", key="nd")
             new_p = st.text_input("Contraseña", type="password", key="np")
             new_p2 = st.text_input("Repite", type="password", key="np2")
             if st.button("Crear y Entrar ✨", use_container_width=True):
                 if not re.match(r"^[a-zA-Z0-9._]+$", new_u):
-                    st.error("Sin signos raros")
+                    st.error("Solo letras, números, . _ sin signos raros")
                 elif new_u in data:
                     st.error("Ya existe")
                 elif new_p != new_p2:
                     st.error("No coinciden")
                 elif len(new_u)<3 or len(new_p)<4:
-                    st.error("Min 3 y 4")
+                    st.error("Usuario min 3, pass min 4")
                 else:
-                    data[new_u] = {"pass": hash_pass(new_p), "display": new_display or new_u, "convs": {}}
+                    data[new_u] = {"pass": hash_pass(new_p), "display": new_display or new_u, "avatar_path": "", "convs": {}}
                     save_data(data)
                     st.session_state.usuario = new_u
                     st.session_state.nombre_display = new_display or new_u
@@ -133,10 +122,10 @@ if not st.session_state.usuario:
                     st.rerun()
     st.stop()
 
-# CARGAR DATA
 data = load_data()
-user_data = data.get(st.session_state.usuario, {"display": st.session_state.nombre_display, "convs": {}})
-convs = user_data.get("convs", {})
+user_info = data.get(st.session_state.usuario, {})
+convs = user_info.get("convs", {})
+avatar_path = user_info.get("avatar_path", "")
 
 def nueva_conversacion():
     cid = str(uuid.uuid4())[:8]
@@ -147,171 +136,133 @@ def nueva_conversacion():
 def guardar_conversacion():
     if not st.session_state.messages or not st.session_state.conv_id:
         return
-    # titulo = primer mensaje del usuario
-    primer_user = next((m["content"][:30] for m in st.session_state.messages if m["role"]=="user"), "Nueva charla")
+    primer = next((m["content"][:30] for m in st.session_state.messages if m["role"]=="user"), "Nueva charla")
     hoy = datetime.datetime.now().strftime("%d/%m %H:%M")
-    data = load_data()
-    if st.session_state.usuario not in data:
-        data[st.session_state.usuario] = {"pass": "", "display": st.session_state.nombre_display, "convs": {}}
-    data[st.session_state.usuario]["convs"][st.session_state.conv_id] = {
-        "title": primer_user,
-        "date": hoy,
-        "messages": st.session_state.messages
-    }
-    save_data(data)
+    d = load_data()
+    if st.session_state.usuario not in d:
+        return
+    d[st.session_state.usuario]["convs"][st.session_state.conv_id] = {"title": primer, "date": hoy, "messages": st.session_state.messages}
+    save_data(d)
 
 api_key = st.secrets.get("GROQ_API_KEY")
 if not api_key:
-    st.error("Falta GROQ_API_KEY")
+    st.error("Falta GROQ_API_KEY en Secrets")
     st.stop()
 client = Groq(api_key=api_key)
 
-# NO USAMOS LLAMA - USAMOS GEMMA QUE SI SIRVE
-MODELO = "gemma2-9b-it"
+# MODELO QUE TU ME PEDISTE, EL BUENO
+MODELO = "openai/gpt-oss-20b"
 
-# HEADER
+# PROMPT FINAL - GENERAL + LENGUAJE ALGEBRAICO + GUIADO SIN REGALAR RESPUESTA
+SYSTEM_PROMPT = f"""
+Eres Dumiluv, tutora de ÁLGEBRA exclusiva para prepa.
+Estudiante: {st.session_state.nombre_display}
+
+TU OBJETIVO:
+Enseñar ÁLGEBRA general, incluyendo LENGUAJE ALGEBRAICO en general. No solo el ejemplo de la madre. Tienes que entender TODO tipo de problema que se pueda convertir a álgebra.
+
+QUE SI PUEDES RESOLVER (ALGEBRA GENERAL):
+- Ecuaciones lineales, cuadráticas: x^2 -5x +6 =0, 2x+3=5
+- Sistemas, factorización, simplificación
+- Balanceo químico porque es ecuación: C2H6 + O2 -> CO2 + H2O
+- LENGUAJE ALGEBRAICO GENERAL: TODO lo que se convierta en ecuación. Ejemplos:
+    * Edades: "La edad de una madre es 3 veces la de su hija y suman 40"
+    * Compras: "Una pera cuesta 2 pesos más que una manzana y 3 peras y 2 manzanas cuestan 20"
+    * Números: "El doble de un número más 5 es 15"
+    * Geometría algebraica: "El largo es 3 más que el ancho y el perímetro es 20"
+    * Mezclas, dinero, porcentajes que se resuelvan con álgebra
+  Tu trabajo es: DETECTAR, CONVERTIR A ECUACIÓN y GUIAR.
+
+QUE NO PUEDES RESOLVER:
+Si preguntan historia, biología, física sin álgebra, chisme, recetas, etc. Di:
+"Lo siento {st.session_state.nombre_display} 💜 solo puedo ayudarte con álgebra. Mándame una ecuación o un problema que se pueda convertir en álgebra y lo resolvemos juntxs paso a paso ✨"
+
+COMO TIENES QUE ENSEÑAR (ESTO ES LO MAS IMPORTANTE - NO REGALES LA RESPUESTA):
+NUNCA des el resultado final directo. Tienes que hacer INTERACCIÓN SOCRÁTICA:
+
+1. Primero pregunta: ¿Qué datos tenemos? ¿Qué incógnita ponemos? ¿x, y?
+2. Luego: ¿Cómo lo convertimos en ecuación? Guíale para que ella lo escriba.
+3. Luego: ¿Ahora qué paso sigue? ¿Despejamos? ¿Factorizamos? Dile que lo intente.
+4. Ve paso a paso: "Resuelve primero esto" -> ella responde -> "Muy bien, ahora resuelve esto"
+5. Solo al final, cuando ya hizo los pasos contigo, le confirmas el resultado explicando cómo se sacó.
+6. Si se atora, dale una pista chiquita, no toda la respuesta.
+
+FORMATO OBLIGATORIO:
+- PROHIBIDO LaTeX: Nunca uses $, \, \frac, \ce, {{, }}.
+- Escribe: x^2, x^3, 2x + 3 = 5, C2H6 + O2 -> 4 CO2 + 6 H2O
+- Corta, dulce, kawaii, en español, máximo 4-5 líneas por mensaje, luego pregunta.
+- Usa emojis pero pocos.
+
+EJEMPLO DE COMO DEBES CONTESTAR:
+Usuario: "La edad de una madre es 3 veces la de su hija y suman 40"
+Tu: "¡Va {st.session_state.nombre_display}! 💜 Vamos a convertirlo en álgebra juntxs.
+Paso 1: Si la hija tiene x años, ¿cuántos tiene la mamá? 🤔"
+-> Esperas su respuesta
+Tu: "¡Exacto! M = 3x. Ahora, si juntas suman 40, ¿cómo queda la ecuación?"
+-> Esperas
+Tu: "¡Siii! x + 3x = 40. Ahora resuelve primero esto: ¿cuánto es x + 3x? ✨"
+
+Así siempre, interactivo.
+"""
+
+# TOP BAR
 with st.container(border=True):
     c1,c2,c3,c4 = st.columns([2,2,1,1])
     with c1:
         st.markdown(f"**⭐ Dumiluv - {st.session_state.nombre_display}**")
     with c2:
-        nn = st.text_input("Te digo:", value=st.session_state.nombre_display, label_visibility="collapsed")
+        nn = st.text_input("Dumiluv", value=st.session_state.nombre_display, label_visibility="collapsed")
         if nn and nn != st.session_state.nombre_display:
             st.session_state.nombre_display = nn
             d = load_data()
             d[st.session_state.usuario]["display"] = nn
             save_data(d)
     with c3:
-        if st.button("➕ Nuevo chat", use_container_width=True):
-            nueva_conversacion()
+        if st.button("⚙️ Ajustes", use_container_width=True):
+            st.session_state.show_ajustes = not st.session_state.show_ajustes
             st.rerun()
     with c4:
-        if st.button("Salir", use_container_width=True):
-            st.session_state.usuario=""
-            st.rerun()
-
-col_izq, col_centro, col_der = st.columns([1, 2.3, 1])
-
-with col_izq:
-    with st.container(border=True):
-        st.image("dumiluv.png", width=90)
-        st.markdown(f"<p style='text-align:center; font-weight:900; font-size:11px;'>Online 💗<br>{st.session_state.nombre_display}</p>", unsafe_allow_html=True)
-        st.divider()
-        st.markdown("<b>💜 Fallas? Contacta:</b><br>📧 <b>7001467@etrr.edu.mx</b><br>📧 <b>7001464@etrr.edu.mx</b><br>📧 <b>7001451@etrr.edu.mx</b><br>📧 <b>7001529@etrr.edu.mx</b>", unsafe_allow_html=True)
-
-with col_centro:
-    with st.container(border=True):
-        st.markdown(f"<div class='header-gamer'>💬 Chat con Dumiluv</div>", unsafe_allow_html=True)
-        chat_box = st.container(height=380)
-        with chat_box:
-            if len(st.session_state.messages)==0:
-                st.write(f"Hola {st.session_state.nombre_display} 💗 ¿Qué aprendemos hoy?")
-                c1,c2 = st.columns(2)
-                with c1:
-                    if st.button("📐 x² -5x +6 =0", use_container_width=True):
-                        if not st.session_state.conv_id:
-                            nueva_conversacion()
-                        st.session_state.messages.append({"role":"user","content":"x² -5x +6 =0"})
-                        st.rerun()
-                    if st.button("⚛️ 2da Ley Newton", use_container_width=True):
-                        if not st.session_state.conv_id:
-                            nueva_conversacion()
-                        st.session_state.messages.append({"role":"user","content":"2da Ley Newton"})
-                        st.rerun()
-                with c2:
-                    if st.button("🧪 C2H6 + O2", use_container_width=True):
-                        if not st.session_state.conv_id:
-                            nueva_conversacion()
-                        st.session_state.messages.append({"role":"user","content":"C2H6 + O2 -> CO2 + H2O balancéala"})
-                        st.rerun()
-                    if st.button("📈 ¿Derivada?", use_container_width=True):
-                        if not st.session_state.conv_id:
-                            nueva_conversacion()
-                        st.session_state.messages.append({"role":"user","content":"¿Qué es derivada?"})
-                        st.rerun()
-            else:
-                for m in st.session_state.messages:
-                    with st.chat_message(m["role"], avatar="dumiluv.png" if m["role"]=="assistant" else "🧑‍🎓"):
-                        st.markdown(f"<b style='color:#111;'>{m['content']}</b>", unsafe_allow_html=True)
-
-        with st.form("form_chat", clear_on_submit=True):
-            prompt = st.text_input("Escribe...", placeholder="Type a message...", label_visibility="collapsed")
-            c1,c2 = st.columns([3,1])
-            with c1:
-                enviar = st.form_submit_button("Enviar 💜", use_container_width=True)
-            with c2:
-                notas = st.form_submit_button("📝 Notas", use_container_width=True)
-
-        if notas:
-            st.session_state.show_notas = not st.session_state.show_notas
-            st.rerun()
-
-        if st.session_state.show_notas:
-            st.markdown(f"<div class='header-gamer'>📓 Libretita</div>", unsafe_allow_html=True)
-            modo = st.radio("Herramienta", ["✏️ Lápiz", "🧹 Borrador"], horizontal=True)
-            stroke_color = "#111111" if "Lápiz" in modo else "#ffffff"
-            stroke_w = 3 if "Lápiz" in modo else 20
-            st_canvas(
-                stroke_width=stroke_w,
-                stroke_color=stroke_color,
-                background_color="#ffffff",
-                height=300,
-                drawing_mode="freedraw",
-                key=f"canvas_{st.session_state.conv_id}",
-            )
-            st.text_area("Apuntes:", placeholder="(x-2)(x-3)...")
-
-        if enviar and prompt:
-            if not st.session_state.conv_id:
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            if st.button("➕ Nuevo", use_container_width=True):
                 nueva_conversacion()
-            st.session_state.messages.append({"role":"user","content":prompt})
-            try:
-                msgs = [{"role":"system","content":f"Eres Dumiluv, tutora algebra. Llama al usuario {st.session_state.nombre_display}. PROHIBIDO LaTeX. Guía no des respuesta directa."}] + st.session_state.messages
-                comp = client.chat.completions.create(model=MODELO, messages=msgs)
-                full = comp.choices[0].message.content
-                st.session_state.messages.append({"role":"assistant","content":full})
-                guardar_conversacion()
-                if st.session_state.voz_activa:
-                    try:
-                        tts = gTTS(text=full[:350], lang='es')
-                        tts.save("voz.mp3")
-                        st.audio("voz.mp3", autoplay=True)
-                    except:
-                        pass
                 st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
+        with cc2:
+            if st.button("Salir", use_container_width=True):
+                st.session_state.usuario=""
+                st.rerun()
 
-with col_der:
+# AJUSTES - AQUI PONES TU FOTO DE GALERIA
+if st.session_state.show_ajustes:
     with st.container(border=True):
-        st.markdown(f"<div class='header-gamer'>Controles</div>", unsafe_allow_html=True)
-        if st.button(f"{'🔊 Voz ON' if st.session_state.voz_activa else '🔇 Voz OFF'}", use_container_width=True):
-            st.session_state.voz_activa = not st.session_state.voz_activa
-            st.rerun()
-        sel = st.selectbox("Color", ["purple","blue","green","orange"], index=["purple","blue","green","orange"].index(st.session_state.tema))
-        if sel != st.session_state.tema:
-            st.session_state.tema = sel
-            st.rerun()
-        st.divider()
-        st.markdown(f"<div class='header-gamer'>Chat History</div>", unsafe_allow_html=True)
-        if not convs:
-            st.markdown("<div style='background:white; border:2px dashed #222; border-radius:10px; padding:15px; text-align:center;'><b>En blanco</b><br>Tus charlas aparecerán aquí</div>", unsafe_allow_html=True)
-        else:
-            # mostrar de más reciente a más antigua
-            for cid, cdata in sorted(convs.items(), key=lambda x: x[1].get("date",""), reverse=True)[:15]:
-                col_t, col_b = st.columns([3,1])
-                with col_t:
-                    if st.button(f"💬 {cdata['title'][:22]}", key=f"hist_{cid}", use_container_width=True):
-                        st.session_state.conv_id = cid
-                        st.session_state.messages = cdata["messages"]
-                        st.rerun()
-                    st.caption(cdata["date"])
-                with col_b:
-                    if st.button("🗑️", key=f"del_{cid}"):
-                        d = load_data()
-                        del d[st.session_state.usuario]["convs"][cid]
-                        save_data(d)
-                        if st.session_state.conv_id == cid:
-                            st.session_state.conv_id = None
-                            st.session_state.messages = []
-                        st.rerun()
+        st.markdown(f"<div class='header-box'>⚙️ Ajustes - Perfil</div>", unsafe_allow_html=True)
+        col_foto, col_datos = st.columns([1,2])
+        with col_foto:
+            if avatar_path and os.path.exists(avatar_path):
+                st.image(avatar_path, width=130)
+            else:
+                st.image("dumiluv.png", width=130)
+        with col_datos:
+            st.write(f"Usuario: {st.session_state.usuario}")
+            nuevo_nombre = st.text_input("¿Cómo quieres que te diga?", value=st.session_state.nombre_display, key="aj_nom")
+            uploaded_file = st.file_uploader("📸 Editar foto - Escoge de tu galería", type=["png","jpg","jpeg"])
+            if uploaded_file is not None:
+                ext = uploaded_file.name.split(".")[-1]
+                new_path = os.path.join(AVATAR_FOLDER, f"{st.session_state.usuario}.{ext}")
+                with open(new_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                d = load_data()
+                d[st.session_state.usuario]["avatar_path"] = new_path
+                if nuevo_nombre:
+                    d[st.session_state.usuario]["display"] = nuevo_nombre
+                save_data(d)
+                st.session_state.nombre_display = nuevo_nombre
+                st.success("¡Foto actualizada! 💜")
+                st.rerun()
+            if st.button("Guardar nombre"):
+                d = load_data()
+                d[st.session_state.usuario]["display"] = nuevo_nombre
+                save_data(d)
+                st.session_state.nombre_display = nuevo_nombre
+                st.success("Guardado")
+                st.rerun()
