@@ -1,6 +1,7 @@
 import streamlit as st
 from groq import Groq
 from gtts import gTTS
+from streamlit_drawable_canvas import st_canvas
 import json, os, re, hashlib, datetime, uuid
 
 st.set_page_config(page_title="Dumiluv", page_icon="💗", layout="wide")
@@ -33,60 +34,57 @@ if "show_ajustes" not in st.session_state:
     st.session_state.show_ajustes = False
 if "voz_activa" not in st.session_state:
     st.session_state.voz_activa = False
+if "show_notas" not in st.session_state:
+    st.session_state.show_notas = False
 if "conv_id" not in st.session_state:
     st.session_state.conv_id = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# COLORES QUE ME PEDISTE EN EL AUDIO
-# Fondo más oscuro, secciones más claritas, barrita rosita pastel
-BG_OSCURO = "#7c4ed4" # fondo morado oscuro
-SECCION_CLARA = "#f3e8ff" # cuadraditos claritos para que resalten
-ROSITA_PASTEL = "#f9a8d4" # barrita de arriba rosita pastel
-MORADITO_BOTON = "#e9a5ff" # botones moraditos
+TEMAS = {
+    "purple": {"bg": "#d8b9ff", "header": "#e9b5ff", "section": "#f9e8ff", "card1": "#e9d5ff", "card2": "#ddd6fe", "card3": "#f5d0fe", "card4": "#fae8ff"},
+    "blue": {"bg": "#a9d0ff", "header": "#7dd3fc", "section": "#e0f2fe", "card1": "#bae6fd", "card2": "#a5f3fc", "card3": "#bfdbfe", "card4": "#dbeafe"},
+    "orange": {"bg": "#ffcf8a", "header": "#fcd34d", "section": "#fef3c7", "card1": "#fde68a", "card2": "#fed7aa", "card3": "#fef08a", "card4": "#ffedd5"},
+    "green": {"bg": "#a0e9b0", "header": "#6ee7b7", "section": "#d1fae5", "card1": "#a7f3d0", "card2": "#99f6e0", "card3": "#bbf7d0", "card4": "#d1fae5"},
+}
+C = TEMAS[st.session_state.tema]
 
 st.markdown(f"""
 <style>
-.stApp {{
-    background: {BG_OSCURO} !important;
-    background-image: radial-gradient(#9f7aea 2px, transparent 2px);
-    background-size: 28px 28px;
-}}
+.stApp {{background: {C['bg']} !important;}}
 header, footer {{visibility:hidden;}}
 div[data-testid="stVerticalBlockBorderWrapper"] {{
-    background: {SECCION_CLARA} !important;
+    background: {C['section']} !important;
     border: 3px solid #222 !important;
     border-radius: 18px !important;
     box-shadow: 6px 6px 0 #222 !important;
 }}
-/* BOTONES ROSITA PASTEL - YA NO NEGROS */
-div[data-testid="stButton"] button {{
-    background: {ROSITA_PASTEL} !important;
-    color: #4c1d95 !important;
-    border: 2.5px solid #222 !important;
+div[data-testid="stChatMessage"] {{
+    background: #ffffff !important;
+    border: 2px solid #222 !important;
     border-radius: 14px !important;
-    font-weight: 900 !important;
-    box-shadow: 4px 4px 0 #222 !important;
 }}
-div[data-testid="stButton"] button:hover {{
-    background: #fbcfe8 !important;
+div[data-testid="stChatMessage"] p {{
+    color: #111 !important;
 }}
 .header-box {{
-    background: {MORADITO_BOTON};
+    background: {C['header']};
     border: 2.5px solid #222;
     border-radius: 12px;
     padding: 8px;
     text-align: center;
     font-weight: 900;
     box-shadow: 3px 3px 0 #222;
-    color: #4c1d95;
 }}
-.top-bar {{
-    background: {ROSITA_PASTEL} !important;
+.card {{
     border: 2.5px solid #222;
-    border-radius: 16px;
+    border-radius: 14px;
     padding: 12px;
-    box-shadow: 5px 5px 0 #222;
+    box-shadow: 4px 4px 0 #222;
+    text-align: center;
+    font-weight: 700;
+    font-size: 12px;
+    min-height: 70px;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -100,14 +98,14 @@ if not st.session_state.usuario:
             u = st.text_input("Usuario", key="lu")
             p = st.text_input("Contraseña", type="password", key="lp")
             if st.button("Entrar 💜", use_container_width=True):
-                if u in data and data[u]["pass"] == hash_pass(p):
+                if u in data and data[u].get("pass") == hash_pass(p):
                     st.session_state.usuario = u
                     st.session_state.nombre_display = data[u].get("display", u)
                     st.session_state.conv_id = None
                     st.session_state.messages = []
                     st.rerun()
                 else:
-                    st.error("Mal")
+                    st.error("Mal usuario o pass")
         with tab2:
             new_u = st.text_input("Usuario nuevo", key="nu")
             new_display = st.text_input("¿Cómo te digo?", key="nd")
@@ -131,6 +129,14 @@ if not st.session_state.usuario:
     st.stop()
 
 data = load_data()
+# FIX DEL ERROR 'convs' - si no existe lo crea
+if st.session_state.usuario not in data:
+    data[st.session_state.usuario] = {"pass": "", "display": st.session_state.usuario, "avatar_path": "", "convs": {}}
+    save_data(data)
+if "convs" not in data[st.session_state.usuario]:
+    data[st.session_state.usuario]["convs"] = {}
+    save_data(data)
+
 user_info = data.get(st.session_state.usuario, {})
 convs = user_info.get("convs", {})
 avatar_path = user_info.get("avatar_path", "")
@@ -147,6 +153,10 @@ def guardar_conversacion():
     primer = next((m["content"][:30] for m in st.session_state.messages if m["role"]=="user"), "Nueva charla")
     hoy = datetime.datetime.now().strftime("%d/%m %H:%M")
     d = load_data()
+    if st.session_state.usuario not in d:
+        d[st.session_state.usuario] = {"pass": "", "display": st.session_state.nombre_display, "avatar_path": avatar_path, "convs": {}}
+    if "convs" not in d[st.session_state.usuario]:
+        d[st.session_state.usuario]["convs"] = {}
     d[st.session_state.usuario]["convs"][st.session_state.conv_id] = {"title": primer, "date": hoy, "messages": st.session_state.messages}
     save_data(d)
 
@@ -154,19 +164,28 @@ api_key = st.secrets.get("GROQ_API_KEY")
 client = Groq(api_key=api_key)
 MODELO = "openai/gpt-oss-20b"
 
+# PROMPT REFORZADO - NO DA RESPUESTA DIRECTA
 SYSTEM_PROMPT = f"""
-Eres Dumiluv, tutora de ALGEBRA exclusiva.
-Estudiante: {st.session_state.nombre_display}
-SOLO ALGEBRA y lenguaje algebraico general.
-Si no es algebra di: Lo siento {st.session_state.nombre_display} 💜 solo algebra.
-PROHIBIDO LaTeX: escribe x^2, C2H6 + O2 -> 4 CO2 + 6 H2O.
-NO REGALES RESPUESTA: guia paso a paso.
+Eres Dumiluv, tutora EXCLUSIVA DE ALGEBRA para {st.session_state.nombre_display}.
+
+PROHIBICION ABSOLUTA - SI ROMPES ESTO FALLAS:
+NUNCA NUNCA des el resultado directo de 4+4, x^2-5x+6, o cualquier operacion.
+Si el usuario dice "4+4" o "8+2", NO respondas "8" o "10".
+Tu OBLIGACION es hacer esto:
+1. Pregunta: "Ok {st.session_state.nombre_display} 💜 ¿que tenemos aqui? ¿como lo convertimos?"
+2. Dile que intente el primer paso: "Intenta tu primero, ¿cuanto crees que da? o ¿como lo agruparias?"
+3. Si se equivoca: "Casi! Revisa, te falto un signo, intenta de nuevo ✨" y explica el error sin dar el resultado final.
+4. Solo al final, despues de 2-3 interacciones, confirmas.
+
+Si te piden 4+4, responde asi: "¡Va! Tenemos 4 + 4 💜 ¿cuantos tienes si juntas 4 con otros 4? ¿que operacion usamos? Intentalo tu primero"
+
+Si no es algebra: "Lo siento {st.session_state.nombre_display} 💜 solo puedo ayudarte con algebra. Mandame una ecuacion o problema de lenguaje algebraico y lo resolvemos juntxs paso a paso ✨"
+
+FORMATO: PROHIBIDO LaTeX: escribe x^2, C2H6 + O2 -> 4 CO2 + 6 H2O. Nunca uses $ \frac \ce. Corta, kawaii.
 """
 
-# BARRA DE ARRIBA ROSITA PASTEL - YA NO NEGRA
 with st.container(border=True):
-    st.markdown(f"<div class='top-bar'>⭐ <b>Dumiluv - {st.session_state.nombre_display}</b></div>", unsafe_allow_html=True)
-    st.write("")
+    st.markdown(f"**⭐ Dumiluv - {st.session_state.nombre_display}**")
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         if st.button("⚙️ Ajustes", use_container_width=True):
@@ -178,7 +197,7 @@ with st.container(border=True):
             st.rerun()
     with col3:
         if st.button("📝 Notas", use_container_width=True):
-            st.session_state.show_notas = not getattr(st.session_state, 'show_notas', False)
+            st.session_state.show_notas = not st.session_state.show_notas
             st.rerun()
     with col4:
         if st.button(f"{'🔊 Voz ON' if st.session_state.voz_activa else '🔇 Voz OFF'}", use_container_width=True):
@@ -218,7 +237,7 @@ if st.session_state.show_ajustes:
             st.session_state.show_ajustes = False
             st.rerun()
 
-c_izq, c_centro, c_der = st.columns([1, 2, 1])
+c_izq, c_centro, c_der = st.columns([1, 2.2, 1])
 
 with c_izq:
     with st.container(border=True):
@@ -226,26 +245,67 @@ with c_izq:
             st.image("dumiluv.png", use_container_width=True)
         else:
             st.markdown("<div style='text-align:center; font-size:70px;'>💜</div>", unsafe_allow_html=True)
-        st.markdown(f"<p style='text-align:center; font-weight:900;'>Online<br>{st.session_state.nombre_display}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center; font-weight:900;'>Online<br>Dumiluv</p>", unsafe_allow_html=True)
         if avatar_path and os.path.exists(avatar_path):
             st.divider()
-            st.write("Tú:")
             st.image(avatar_path, width=90)
-        st.divider()
-        st.markdown("**💜 Fallas?**<br>7001467@etrr.edu.mx<br>7001464@etrr.edu.mx<br>7001451@etrr.edu.mx<br>7001529@etrr.edu.mx", unsafe_allow_html=True)
 
 with c_centro:
-    with st.container(border=True):
-        st.markdown("<div class='header-box'>Chat con Dumiluv - Solo Álgebra</div>", unsafe_allow_html=True)
-        box = st.container(height=400)
-        with box:
-            if not st.session_state.messages:
-                st.write(f"Hola {st.session_state.nombre_display} 💜 Mándame una ecuación o problema de lenguaje algebraico ✨")
-            else:
-                for m in st.session_state.messages:
-                    with st.chat_message(m["role"]):
-                        st.markdown(m["content"])
+    if st.session_state.show_notas:
+        with st.container(border=True):
+            st.markdown(f"<div class='header-box'>📓 Libretita</div>", unsafe_allow_html=True)
+            modo = st.radio("Herramienta", ["✏️ Lápiz", "🧹 Borrador"], horizontal=True, label_visibility="collapsed")
+            stroke_color = "#111" if "Lápiz" in modo else "#ffffff"
+            stroke_w = 3 if "Lápiz" in modo else 20
+            st_canvas(
+                stroke_width=stroke_w,
+                stroke_color=stroke_color,
+                background_color="#ffffff",
+                height=250,
+                drawing_mode="freedraw",
+                key=f"canvas_{st.session_state.conv_id or 'init'}",
+            )
+            if st.button("Cerrar libretita ❌"):
+                st.session_state.show_notas = False
+                st.rerun()
 
+    with st.container(border=True):
+        st.markdown(f"<div class='header-box'>Chat con Dumiluv - Solo Álgebra</div>", unsafe_allow_html=True)
+        if not st.session_state.messages:
+            st.write(f"Hola {st.session_state.nombre_display} 💜 ¿Qué resolvemos hoy? ✨")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"<div class='card' style='background:{C['card1']};'>📐<br>x^2 -5x +6 =0</div>", unsafe_allow_html=True)
+                if st.button("Usar 1", key="e1", use_container_width=True):
+                    if not st.session_state.conv_id: nueva_conversacion()
+                    st.session_state.messages.append({"role":"user","content":"x^2 -5x +6 =0"})
+                    st.rerun()
+                st.markdown(f"<div class='card' style='background:{C['card2']};'>👩‍👧<br>Madre e hija suman 40</div>", unsafe_allow_html=True)
+                if st.button("Usar 2", key="e2", use_container_width=True):
+                    if not st.session_state.conv_id: nueva_conversacion()
+                    st.session_state.messages.append({"role":"user","content":"La edad de una madre es 3 veces la de su hija y juntas suman 40"})
+                    st.rerun()
+            with col2:
+                st.markdown(f"<div class='card' style='background:{C['card3']};'>🍎<br>Pera cuesta 2 más que manzana</div>", unsafe_allow_html=True)
+                if st.button("Usar 3", key="e3", use_container_width=True):
+                    if not st.session_state.conv_id: nueva_conversacion()
+                    st.session_state.messages.append({"role":"user","content":"Una pera cuesta 2 más que una manzana y 3 peras y 2 manzanas cuestan 20"})
+                    st.rerun()
+                st.markdown(f"<div class='card' style='background:{C['card4']};'>🧪<br>C2H6 + O2</div>", unsafe_allow_html=True)
+                if st.button("Usar 4", key="e4", use_container_width=True):
+                    if not st.session_state.conv_id: nueva_conversacion()
+                    st.session_state.messages.append({"role":"user","content":"Balancea C2H6 + O2 -> CO2 + H2O"})
+                    st.rerun()
+        else:
+            box = st.container(height=380)
+            with box:
+                for m in st.session_state.messages:
+                    if m["role"] == "assistant":
+                        avatar = "dumiluv.png" if os.path.exists("dumiluv.png") else "💜"
+                    else:
+                        avatar = avatar_path if avatar_path and os.path.exists(avatar_path) else "🧑"
+                    with st.chat_message(m["role"], avatar=avatar):
+                        st.markdown(m["content"])
     with st.container(border=True):
         prompt = st.chat_input("Type a message...")
         if prompt:
@@ -271,7 +331,13 @@ with c_centro:
 
 with c_der:
     with st.container(border=True):
-        st.markdown("<div class='header-box'>Chat History</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='header-box'>Controles</div>", unsafe_allow_html=True)
+        sel = st.selectbox("Color tema", ["purple","blue","orange","green"], index=["purple","blue","orange","green"].index(st.session_state.tema))
+        if sel != st.session_state.tema:
+            st.session_state.tema = sel
+            st.rerun()
+        st.divider()
+        st.markdown(f"<div class='header-box'>Chat History</div>", unsafe_allow_html=True)
         if not convs:
             st.markdown("<div style='border:2px dashed #222; border-radius:10px; padding:12px; text-align:center;'>En blanco</div>", unsafe_allow_html=True)
         else:
@@ -280,4 +346,3 @@ with c_der:
                     st.session_state.conv_id = cid
                     st.session_state.messages = cdata["messages"]
                     st.rerun()
-                st.caption(cdata["date"])
