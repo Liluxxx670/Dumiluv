@@ -105,97 +105,63 @@ if key not in st.session_state:
 st.session_state[key] = value
 
 THEMES = {
-"pink": {
-"bg": "#f7eafa", "panel": "#
+    "pink": {
+        "bg": "#f7eafa",
+        "panel": "#f7dffc",
+        "header": "#f7cde5",
+        "chat": "#fffafd",
+        "side": "#f0ddfa",
+        "card": "#fce2f0",
+        "btn": "#edb8dc",
+        "accent": "#9b6bb5",
+        "ink": "#573d68",
+        "field": "#fdf6fc",
+        "field_text": "#573d68"
+    },
 
-f7fc", "header": "#f7cde5",
+    "purple": {
+        "bg": "#eee4fb",
+        "panel": "#e8d8f8",
+        "header": "#ddc4f5",
+        "chat": "#faf7ff",
+        "side": "#e8d8f8",
+        "card": "#f0e2fa",
+        "btn": "#d6b5ed",
+        "accent": "#9565bd",
+        "ink": "#51366b",
+        "field": "#faf7ff",
+        "field_text": "#51366b"
+    },
 
-"chat": "#
+    "blue": {
+        "bg": "#e5f2ff",
+        "panel": "#d5eaff",
+        "header": "#b9dcff",
+        "chat": "#f8fcff",
+        "side": "#d5eaff",
+        "card": "#e1f0ff",
+        "btn": "#afd5fa",
+        "accent": "#659bc9",
+        "ink": "#355878",
+        "field": "#f8fcff",
+        "field_text": "#355878"
+    },
 
-fafd", "side": "#f0ddfa", "card": "#
-e2f0",
-"btn": "#edb8dc", "accent": "#9b6bb5", "ink": "#573d68",
-"
-eld": "#
-fafd", "
-eld_text": "#573d68"
-
-},
-"purple": {
-"bg": "#eee4fb", "panel": "#
-f9
-", "header": "#ddc4f5",
-
-"chat": "#
-fa
-", "side": "#e8d8f8", "card": "#f0e2
-",
-
-"btn": "#d8b8f0", "accent": "#8963b0", "ink": "#503b68",
-"
-eld": "#
-fa
-", "
-eld_text": "#503b68"
-
-},
-"blue": {
-"bg": "#e4f1
-
-", "panel": "#f8fc
-
-", "header": "#c4e5fb",
-
-"chat": "#fbfd
-
-", "side": "#d9ed
-
-", "card": "#dce
-f",
-"btn": "#b7def7", "accent": "#5e9fc5", "ink": "#31556d",
-"
-eld": "#f8fc
-", "
-eld_text": "#31556d"
-
-},
-"orange": {
-"bg": "#
-
-f0dc", "panel": "#
-
-faf2", "header": "#
-dfa8",
-
-"chat": "#
-
-fdf8", "side": "#
-
-ebc9", "card": "#
-ebc7",
-"btn": "#f8d18e", "accent": "#c28a3c", "ink": "#73512c",
-"
-eld": "#
-faf2", "
-eld_text": "#73512c"
-
-},
-"green": {
-"bg": "#e4f7eb", "panel": "#f8
-
-f9", "header": "#c6efd6",
-
-"chat": "#fb
-
-fc", "side": "#d8f3e1", "card": "#d8f5e3",
-"btn": "#b7e8c9", "accent": "#62a982", "ink": "#345f49",
-"
-eld": "#f8
-f9", "
-eld_text": "#345f49"
-
+    "green": {
+        "bg": "#e6f7ed",
+        "panel": "#d5f0df",
+        "header": "#bce8ce",
+        "chat": "#f8fffa",
+        "side": "#d5f0df",
+        "card": "#e0f5e7",
+        "btn": "#aee0bf",
+        "accent": "#65a77c",
+        "ink": "#345e43",
+        "field": "#f8fffa",
+        "field_text": "#345e43"
+    }
 }
-}
+
 C = THEMES.get(st.session_state.tema, THEMES["pink"])
 
 # ---------- Estilos ----------
