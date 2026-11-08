@@ -1,139 +1,169 @@
+
+
 import streamlit as st
 from groq import Groq
+from gtts import gTTS
+import base64
+import os
 
-st.markdown("""
-<style>
-h1 { color: #6a0dad !important; }
-h3 { color: #8a2be2 !important; }
-p, .stMarkdown { color: #4b0082 !important; }
-</style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="Dumiluv", page_icon="💗", layout="wide")
 
-st.set_page_config(page_title="Dumiluv 2.0", page_icon="📚", layout="centered")
-
-# --- ESTILO ---
-st.markdown("""
-<style>
-.stApp { background: #f8f9ff; }
-.ejemplo-card {
-    background: white;
-    padding: 15px;
-    border-radius: 15px;
-    border: 1px solid #e6e6ff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    cursor: pointer;
-    height: 110px;
-    transition: 0.2s;
-}
-.ejemplo-card:hover { transform: scale(1.02); border-color: #a48fff; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- NOMBRE DEL USUARIO ---
+# --- ESTADOS ---
+if "tema" not in st.session_state:
+    st.session_state.tema = "purple" # rosa por defecto = imagen 3
 if "nombre" not in st.session_state:
     st.session_state.nombre = ""
+if "voz_activa" not in st.session_state:
+    st.session_state.voz_activa = False
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-with st.sidebar:
-    st.title("💗 Dumiluv 2.0")
-    st.session_state.nombre = st.text_input("¿Cómo te llamas?", value=st.session_state.nombre, placeholder="Ej: Lili")
-    st.divider()
-    api_key = st.secrets.get("GROQ_API_KEY", None)
-    if not api_key:
-        api_key = st.text_input("Groq API Key:", type="password")
-    st.caption("Tu tutor 100% en la nube ☁️")
+COLORES = {
+    "purple": {"bg":"#e9d5ff", "window":"#f5e6ff", "header":"#f8b5d8", "chat":"#fce7ff", "side":"#ddd6fe", "border":"#c084fc"},
+    "blue": {"bg":"#bfdbfe", "window":"#dbeafe", "header":"#93c5fd", "chat":"#eff6ff", "side":"#c7d2fe", "border":"#60a5fa"},
+    "green": {"bg":"#bbf7d0", "window":"#dcfce7", "header":"#86efac", "chat":"#f0fdf4", "side":"#bbf7d0", "border":"#4ade80"},
+    "orange": {"bg":"#ffedd5", "window":"#fff7ed", "header":"#fdba74", "chat":"#fff7ed", "side":"#fed7aa", "border":"#fb923c"},
+}
+C = COLORES[st.session_state.tema]
 
+def img_to_base64(path):
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except:
+        return ""
+dumiluv_b64 = img_to_base64("dumiluv.png")
+
+# --- CSS COZY ---
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@700&display=swap');
+.stApp {{ background: {C['bg']}; }}
+header, footer, #MainMenu {{visibility:hidden;}}
+.block-container {{max-width: 1100px; padding-top: 0.5rem;}}
+.dumi-window {{ background: {C['window']}; border: 3px solid #222; border-radius: 18px; box-shadow: 8px 8px 0px #222; overflow:hidden; }}
+.dumi-header {{ background: {C['header']}; border-bottom: 3px solid #222; padding: 12px 16px; display:flex; justify-content:space-between; align-items:center; font-family:'Press Start 2P'; font-size:11px; }}
+.dumi-body {{ display:grid; grid-template-columns: 165px 1fr 220px; min-height: 600px; }}
+.dumi-left {{ background:{C['window']}; border-right:3px solid #222; padding:12px; text-align:center; }}
+.dumi-center {{ background:{C['chat']}; padding:14px; }}
+.dumi-right {{ background:{C['side']}; border-left:3px solid #222; padding:10px; }}
+.history-title {{ background:{C['header']}; border:2px solid #222; border-radius:10px; padding:8px; text-align:center; font-family:'Press Start 2P'; font-size:9px; margin-bottom:10px; }}
+.history-item {{ background:white; border:2px solid #222; border-radius:10px; padding:8px; margin-bottom:8px; font-size:12px; box-shadow:2px 2px 0 #222; }}
+.btn-pixel {{ border:2px solid #222; border-radius:10px; padding:6px; background:white; box-shadow:2px 2px 0 #222; cursor:pointer; font-size:14px; width:100%; margin-bottom:6px; }}
+</style>
+""", unsafe_allow_html=True)
+
+# --- API KEY ---
+api_key = st.secrets.get("GROQ_API_KEY", None)
 if not api_key:
-    st.info("👋 Configura tu GROQ_API_KEY en Secrets para comenzar.")
+    with st.sidebar:
+        api_key = st.text_input("Groq API Key:", type="password")
+if not api_key:
     st.stop()
-
 client = Groq(api_key=api_key)
 
-nombre_display = st.session_state.nombre if st.session_state.nombre else "tú"
-saludo_nombre = f"Te llamarás {st.session_state.nombre}. Úsalo para personalizar tus respuestas de forma cálida." if st.session_state.nombre else "El usuario no ha dado su nombre, sé amable y pregunta su nombre si es natural."
+# Inicializar sistema
+if len(st.session_state.messages) == 0:
+    st.session_state.messages = [{"role":"system","content":f"Eres Dumiluv, tutora kawaii en español. Nombre usuario: {st.session_state.nombre}. PROHIBIDO LaTeX ($, \\). Escribe x^2, C2H6 + O2. Balancea reacciones: 2 C2H6 + 7 O2 -> 4 CO2 + 6 H2O. Sé dulce 💜"}]
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-       {"role": "system", "content": "Eres Dumiluv 2.0, tutora de prepa en espanol. Tu trabajo es balancear y resolver. Si el usuario escribe C2H6 + O2 -> CO2 + H2O, NO digas que le faltan coeficientes, tu debes ponerlos: 2 C2H6 + 7 O2 -> 4 CO2 + 6 H2O y explicar paso a paso. Solo di que faltan datos si la ecuacion esta incompleta tipo 'C2H6 + = CO2' o 'calcula velocidad sin datos'. PROHIBIDO usar LaTeX tipo [ \\text{} ]. Escribe formulas simples: C2H6, O2, CO2, H2O, x^2. Usa emojis morados."}
-    ]
-
-# --- TITULO ---
-st.title("📚 Dumiluv 2.0")
-st.image("dumiluv.png", width=250)
-if st.session_state.nombre:
-    st.subheader(f"Hola {st.session_state.nombre} 💗, ¿qué vamos a aprender hoy?")
-else:
-    st.subheader("Tu tutor de prepa 100% libre en la nube")
-
-# --- SI NO HAY CHAT, MUESTRA LOS 4 CUADROS ---
-if len(st.session_state.messages) == 1:
-    st.write(f"¡Hola {nombre_display}! Elige un ejemplo para empezar 👇")
+# --- VENTANA ---
+col_h1, col_h2 = st.columns([6,1])
+with col_h1:
+    st.markdown(f"""
+    <div class="dumi-window">
+      <div class="dumi-header"><div>⭐ Dumiluv ✨</div><div>AI Assistant - Online 💗</div></div>
+      <div class="dumi-body">
+        <div class="dumi-left">
+          <img src="data:image/png;base64,{dumiluv_b64}" style="width:120px;" />
+          <div style="font-family:'Press Start 2P'; font-size:8px; margin-top:8px;">AI Assistant<br>Online 💗</div>
+          <div style="margin-top:15px; background:white; border:2px solid #222; border-radius:12px; padding:8px; font-size:12px;">Hola {st.session_state.nombre or 'tú'} 💜</div>
+        </div>
+        <div class="dumi-center">
+    """, unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📐 ¿Cómo resuelvo x² -5x +6 =0 paso a paso?", use_container_width=True):
-            st.session_state.ejemplo = "¿Cómo resuelvo x² -5x +6 =0 paso a paso? Explícame como si fuera mi primera vez"
-            st.rerun()
-        if st.button("⚛️ Explícame la 2da Ley de Newton con un ejemplo real", use_container_width=True):
-            st.session_state.ejemplo = "Explícame la 2da Ley de Newton con un ejemplo de la vida real y un ejercicio"
-            st.rerun()
-    with col2:
-        if st.button("🧪 ¿Cómo balanceo C2H6 + O2 -> CO2 + H2O?", use_container_width=True):
-            st.session_state.ejemplo = "¿Cómo balanceo la ecuación química C2H6 + O2 -> CO2 + H2O? Enséñame paso a paso"
-            st.rerun()
-        if st.button("📈 ¿Qué es una derivada y para qué sirve?", use_container_width=True):
-            st.session_state.ejemplo = "¿Qué es una derivada y para qué sirve? Dame un ejemplo fácil"
-            st.rerun()
+    # CHAT DENTRO
+    for m in st.session_state.messages:
+        if m["role"] != "system":
+            with st.chat_message(m["role"]):
+                st.markdown(m["content"])
 
-# --- MOSTRAR HISTORIAL ---
-for message in st.session_state.messages:
-    if message["role"] != "system":
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# --- MANEJO DE PROMPT ---
-prompt = None
-if "ejemplo" in st.session_state:
-    prompt = st.session_state.ejemplo
-    del st.session_state["ejemplo"]
-else:
-    prompt = st.chat_input(f"Escribe tu duda, {nombre_display}...")
+    # PANEL DERECHO CON BOTONES
+    with st.container():
+        st.markdown(f"""
+        <div class="dumi-right">
+          <div class="history-title">Controles</div>
+        """, unsafe_allow_html=True)
+    
+    # Aquí van los botones reales de Streamlit
+    if st.button(f"{'🔊 Voz ON' if st.session_state.voz_activa else '🔇 Voz OFF'}", use_container_width=True):
+        st.session_state.voz_activa = not st.session_state.voz_activa
+        st.rerun()
+    
+    if st.button("🎨 Cambiar Tema", use_container_width=True):
+        # ciclo de temas
+        orden = ["purple","blue","green","orange"]
+        idx = orden.index(st.session_state.tema)
+        st.session_state.tema = orden[(idx+1)%len(orden)]
+        st.rerun()
+
+    # Botones de tema específicos si quieres elegir
+    with st.expander("Elegir color"):
+        if st.button("💜 Rosa (original)", use_container_width=True):
+            st.session_state.tema="purple"; st.rerun()
+        if st.button("💙 Azul", use_container_width=True):
+            st.session_state.tema="blue"; st.rerun()
+        if st.button("💚 Verde", use_container_width=True):
+            st.session_state.tema="green"; st.rerun()
+        if st.button("🧡 Naranja", use_container_width=True):
+            st.session_state.tema="orange"; st.rerun()
+
+    if st.button("👤 Perfil / Guardar Sesión", use_container_width=True):
+        st.session_state.show_perfil = not st.session_state.get("show_perfil", False)
+
+    if st.session_state.get("show_perfil", False):
+        nuevo_nombre = st.text_input("Tu nombre", value=st.session_state.nombre)
+        if st.button("Guardar perfil"):
+            st.session_state.nombre = nuevo_nombre
+            st.success(f"Guardado como {nuevo_nombre} 💜")
+    
+    st.markdown("""
+          <div style="margin-top:12px;"><div class="history-title">Chat History</div></div>
+          <div class="history-item">💬 2024-05-15: Cozy Games</div>
+          <div class="history-item">💬 2024-05-14: Plant care</div>
+          <div class="history-item">💬 2024-05-13: Story time</div>
+          <div class="history-item">💬 2024-05-12: Mood check</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --- INPUT ---
+prompt = st.chat_input(f"Type a message, {st.session_state.nombre or 'tú'}...")
 
 if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.messages.append({"role":"user","content":prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
     with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        full_response = ""
-        
-        completion = client.chat.completions.create(
-            model="openai/gpt-oss-20b", # CAMBIADO: este sí existe y es gratis
-            messages=st.session_state.messages,
-            stream=True
-        )
-        
-        for chunk in completion:
-            content = chunk.choices[0].delta.content or ""
-            full_response += content
-            response_placeholder.markdown(full_response + "▌")
-            
-        response_placeholder.markdown(full_response)
-        
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+        ph = st.empty()
+        full = ""
+        comp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=st.session_state.messages, stream=True)
+        for chunk in comp:
+            c = chunk.choices[0].delta.content or ""
+            full += c
+            ph.markdown(full + "▌")
+        ph.markdown(full)
 
-# --- CONTACTO FINAL CLICKEABLE ---
-st.divider()
-st.markdown("""
-<div style='text-align:center; color:#4c1d95; padding:20px; border:2px solid #e9d5ff; border-radius:18px; background:#fdf4ff;'>
+        # VOZ
+        if st.session_state.voz_activa:
+            try:
+                tts = gTTS(text=full[:400], lang='es', slow=False) # solo 400 chars para que no tarde
+                tts.save("voz.mp3")
+                st.audio("voz.mp3", autoplay=True)
+            except Exception as e:
+                st.error(f"No se pudo generar voz: {e}")
 
-<p style='font-size:24px; font-weight:bold;'>💜 ¿Ocurrió alguna falla? 💜</p>
-<p>Contáctanos a cualquiera de estos correos:</p>
-
-<p>📧 1: <a href="mailto:7001467@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001467@etrr.edu.mx</a></p>
-<p>📧 2: <a href="mailto:7001464@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001464@etrr.edu.mx</a></p>
-<p>📧 3: <a href="mailto:7001451@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001451@etrr.edu.mx</a></p>
-<p>📧 4: <a href="mailto:7001529@etrr.edu.mx" style="color:#6a0dad; text-decoration:none; font-weight:bold;">7001529@etrr.edu.mx</a></p>
-
-</div>
-""", unsafe_allow_html=True)
+    st.session_state.messages.append({"role":"assistant","content":full})
+    st.rerun()
