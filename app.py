@@ -75,16 +75,13 @@ cleaned = re.sub(r"\s+", " ", cleaned).strip()
 return cleaned[:280]
 
 def ensure_user_record(data, username):
-data.setdefault(username, {})
-
-data[username].setdefault("display", username)
-data[username].setdefault("avatar_path", "")
-data[username].setdefault("gender", "Pre
-
-ero no decirlo")
-data[username].setdefault("pronouns", "Neutros (elle)")
-data[username].setdefault("convs", {})
-return data[username]
+    data.setdefault(username, {})
+    data[username].setdefault("display", username)
+    data[username].setdefault("avatar_path", "")
+    data[username].setdefault("gender", "Prefiero no decirlo")
+    data[username].setdefault("pronouns", "Neutros (elle)")
+    data[username].setdefault("convs", {})
+    return data[username]
 
 # ---------- Estado de sesión ----------
 defaults = {
