@@ -88,9 +88,7 @@ defaults = {
 "tema": "pink",
 "usuario": "",
 "nombre_display": "",
-"genero": "Pre
-
-ero no decirlo",
+"genero": "Prefiero no decirlo",
 "pronombres": "Neutros (elle)",
 "show_ajustes": False,
 "voz_activa": True,
