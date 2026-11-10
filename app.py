@@ -48,9 +48,41 @@ def image_data_uri(path):
     except OSError:
         return ""
 
+def clean_math_markup(text):
+    """Limpia Markdown y delimitadores LaTeX para mostrar texto legible en el chat."""
+    value = str(text or "")
+    # Quitar delimitadores LaTeX sin eliminar el contenido matemático.
+    value = re.sub(r"\\\((.*?)\\\)", r"\1", value, flags=re.DOTALL)
+    value = re.sub(r"\\\[(.*?)\\\]", r"\1", value, flags=re.DOTALL)
+    value = re.sub(r"\$\$(.*?)\$\$", r"\1", value, flags=re.DOTALL)
+    value = re.sub(r"\$(.*?)\$", r"\1", value, flags=re.DOTALL)
+    # Convertir algunos comandos LaTeX frecuentes a símbolos legibles.
+    latex_replacements = {
+        r"\times": "×", r"\cdot": "·", r"\div": "÷",
+        r"\neq": "≠", r"\leq": "≤", r"\geq": "≥",
+        r"\approx": "≈", r"\pi": "π", r"\sqrt": "√",
+        r"\ in ": " en "
+    }
+    for old, replacement in latex_replacements.items():
+        value = value.replace(old, replacement)
+    value = re.sub(r"\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}", r"(\1)/(\2)", value)
+    value = re.sub(r"\\text\s*\{([^{}]*)\}", r"\1", value)
+    value = re.sub(r"\\(?:left|right)\b", "", value)
+    # Quitar formato Markdown, sin tocar operadores matemáticos.
+    value = re.sub(r"(\*\*|__)(.*?)\1", r"\2", value, flags=re.DOTALL)
+    value = re.sub(r"(?<!\*)\*(?!\s)(.*?)(?<!\s)\*(?!\*)", r"\1", value)
+    value = re.sub(r"(?<!_)_(?!\s)(.*?)(?<!\s)_(?!_)", r"\1", value)
+    value = re.sub(r"`{1,3}", "", value)
+    value = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", value)
+    value = re.sub(r"(?m)^\s*[-+]\s+", "", value)
+    value = re.sub(r"(?m)^\s*\d+[.)]\s+", "", value)
+    return value
+
+
 def strip_emojis_for_voice(text):
-    """Quita emojis solo de la versión hablada; el chat conserva el texto original."""
-    # Rangos Unicode habituales de emojis, pictogramas, banderas y selectores.
+    """Prepara la respuesta para voz: quita emojis/Markdown y lee símbolos solo si son matemáticos."""
+    value = clean_math_markup(text)
+
     emoji_pattern = re.compile(
         "["
         "\U0001F1E0-\U0001F1FF"
@@ -67,10 +99,38 @@ def strip_emojis_for_voice(text):
         "]+",
         flags=re.UNICODE
     )
-    cleaned = emoji_pattern.sub("", str(text))
-    cleaned = re.sub(r"[\uFE0E\uFE0F\u200D]", "", cleaned)
-    cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    return cleaned[:280]
+    value = emoji_pattern.sub("", value)
+    value = re.sub(r"[\uFE0E\uFE0F\u200D]", "", value)
+
+    # Convertir expresiones matemáticas delimitadas o ecuaciones sencillas a voz.
+    def speak_math(match):
+        expr = match.group(0)
+        expr = expr.replace("×", " por ").replace("*", " por ")
+        expr = expr.replace("÷", " dividido entre ").replace("/", " entre ")
+        expr = expr.replace("+", " más ").replace("−", " menos ").replace("-", " menos ")
+        expr = expr.replace("=", " es igual a ")
+        expr = expr.replace("≠", " es diferente de ")
+        expr = expr.replace("≤", " es menor o igual que ")
+        expr = expr.replace("≥", " es mayor o igual que ")
+        expr = expr.replace("^2", " al cuadrado").replace("^3", " al cubo")
+        expr = expr.replace("²", " al cuadrado").replace("³", " al cubo")
+        expr = expr.replace("^", " elevado a ")
+        expr = expr.replace("√", " raíz cuadrada de ")
+        expr = expr.replace("π", " pi ")
+        return expr
+
+    # Detectar ecuaciones/operaciones completas, no símbolos sueltos en la prosa.
+    math_term = r"(?:[0-9]+(?:[.,][0-9]+)?\s*[A-Za-z](?:_\d+)?|[A-Za-z](?:_\d+)?|[0-9]+(?:[.,][0-9]+)?)"
+    equation_pattern = re.compile(
+        rf"(?<![\w]){math_term}(?:\s*(?:[+\-−*/×÷=<>≤≥^])\s*{math_term})+(?![\w])"
+    )
+    value = equation_pattern.sub(speak_math, value)
+
+    # Quitar símbolos de formato/puntuación que no deben pronunciarse.
+    value = re.sub(r"[#*_`~{}\[\]\\|<>@&$%!?]", " ", value)
+    value = re.sub(r"[•▪►]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value[:900]
 
 def ensure_user_record(data, username):
     data.setdefault(username, {})
@@ -270,7 +330,7 @@ def render_chat(messages, user_avatar, assistant_avatar, display_name):
         )
     for msg in messages:
         role = "user" if msg.get("role") == "user" else "assistant"
-        content = safe_text(msg.get("content", "")).replace("\n", "<br>")
+        content = safe_text(clean_math_markup(msg.get("content", ""))).replace("\n", "<br>")
         avatar = user_avatar if role == "user" else assistant_avatar
         if not avatar:
             avatar = ""
@@ -367,6 +427,7 @@ def send_message(text):
             "Traduce lenguaje cotidiano a lenguaje algebraico y al revés. Define las variables; explica qué significa 'el doble de un número más cinco' y cómo se representa. Distingue frases como 'el doble de la suma' y 'el doble de un número más cinco'. "
             "Si el mensaje es una respuesta a tu pregunta anterior, interpreta el contexto y evalúa ese intento, no empieces otro ejercicio. Mantén el hilo y recuerda los pasos anteriores. "
             "Tono cercano, paciente, motivador y claro. Usa español sencillo, formato legible y emojis moderados. Nunca inventes que el estudiante acertó: calcula y verifica. Si hay varias interpretaciones, pregunta. "
+            "FORMATO: no uses LaTeX ni delimitadores como \\( \\), \\[ \\], ni comandos como \\frac. Escribe las expresiones con símbolos normales: 2x + 3 = 7, x², √9, 1/2. No escribas asteriscos para negritas, ni guiones de lista si no hacen falta. Los títulos pueden ir como texto simple. "
         )
         msgs = [{"role": "system", "content": system_prompt}] + st.session_state.messages
         response = client.chat.completions.create(
