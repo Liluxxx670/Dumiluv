@@ -285,13 +285,63 @@ def render_chat(messages, user_avatar, assistant_avatar, display_name):
     pieces.append("</div>")
     st.markdown("".join(pieces), unsafe_allow_html=True)
 
+def es_consulta_matematica(texto, mensajes_previos=None):
+    """Filtro inicial: permite matemáticas y preguntas de otras áreas con vínculo matemático."""
+    texto_limpio = (texto or "").lower()
+    palabras = re.findall(r"[a-záéíóúüñ]+", texto_limpio)
+    temas = {
+        "matemática", "matematicas", "matemáticas", "mate", "algebra", "álgebra",
+        "ecuacion", "ecuación", "ecuaciones", "despejar", "despeje", "incognita", "incógnita",
+        "variable", "variables", "expresion", "expresión", "polinomio", "factorizar",
+        "factorización", "funcion", "función", "funciones", "geometria", "geometría",
+        "trigonometria", "trigonometría", "calculo", "cálculo", "derivada", "integral",
+        "fraccion", "fracción", "porcentaje", "porcentajes", "suma", "resta",
+        "multiplicacion", "multiplicación", "division", "división", "potencia", "raiz", "raíz",
+        "probabilidad", "estadistica", "estadística", "perimetro", "perímetro", "area", "área",
+        "volumen", "angulo", "ángulo", "pendiente", "grafica", "gráfica", "sistema", "sistemas",
+        "proporción", "proporcion", "regla", "tres", "ohm", "resistencia", "voltaje", "corriente",
+        "formula", "fórmula", "calcular", "calcula", "calcula", "resolver", "resuelve", "resultado",
+        "operacion", "operación", "numeros", "números", "numero", "número", "aritmetica", "aritmética"
+    }
+    if any(p in temas for p in palabras):
+        return True
+    # Notación matemática, por ejemplo 2x+5=11 o 3/4.
+    if re.search(r"(?:\d\s*[xX*+\-/^=()]|[xX]\s*[+\-=]|\d\s*=)", texto_limpio):
+        return True
+    # Permite respuestas cortas del estudiante durante un ejercicio ya iniciado.
+    for msg in reversed(mensajes_previos or []):
+        if msg.get("role") == "assistant":
+            contenido = msg.get("content", "").lower()
+            contexto = ("ecuación", "ecuacion", "álgebra", "algebra", "matemát", "despej", "variable", "resultado", "operación", "operacion", "paso", "calcula")
+            if any(p in contenido for p in contexto):
+                return True
+            break
+    return False
+
+
 def send_message(text):
     text = text.strip()
     if not text:
         return
     if not st.session_state.conv_id:
         nueva_conversacion()
+    mensajes_previos = list(st.session_state.messages)
     st.session_state.messages.append({"role": "user", "content": text})
+    if not es_consulta_matematica(text, mensajes_previos):
+        nombre = st.session_state.nombre_display or ""
+        saludo = f" {safe_text(nombre)}" if nombre else ""
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": (
+                f"¡Hola{saludo}! 💗 Esa pregunta está fuera de mi especialidad. "
+                "Soy Dumiluv y estoy diseñada para ayudarte con matemáticas y álgebra: "
+                "ecuaciones, despejes, funciones, operaciones y problemas paso a paso. "
+                "Si tu tarea es de otra materia, puedo ayudarte cuando incluya un cálculo, "
+                "una fórmula, porcentajes o una ecuación. ¿Qué ejercicio matemático resolvemos? 🌷"
+            )
+        })
+        guardar_conversacion()
+        return
     api_key = st.secrets.get("GROQ_API_KEY", "")
     if not api_key:
         st.session_state.messages.append({
