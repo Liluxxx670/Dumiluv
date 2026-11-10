@@ -337,7 +337,7 @@ if not st.session_state.usuario:
     st.write("")
     tab_login, tab_create = st.tabs(["💗 Entrar", "🌷 Crear cuenta"])
     data = load_data()
-        with tab_login:
+    with tab_login:
         st.markdown("<div class='dumi-panel'>", unsafe_allow_html=True)
         username = st.text_input("Usuario", key="login_user")
         password = st.text_input("Contraseña", type="password", key="login_pass")
