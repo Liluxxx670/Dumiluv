@@ -85,6 +85,7 @@ def ensure_user_record(data, username):
 defaults = {
     "tema": "pink",
     "usuario": "",
+    "invitado": False,
     "nombre_display": "",
     "genero": "Prefiero no decirlo",
     "pronombres": "Neutros (elle)",
@@ -245,6 +246,8 @@ def nueva_conversacion():
     st.session_state.history_loaded = True
 
 def guardar_conversacion():
+    if st.session_state.get("invitado", False):
+        return
     if not st.session_state.messages or not st.session_state.conv_id:
         return
     data = load_data()
@@ -303,13 +306,17 @@ def send_message(text):
         pronouns = st.session_state.pronombres
         gender = st.session_state.genero
         system_prompt = (
-            f"Eres Dumiluv, tutora kawaii de matemáticas para {display}. "
-            f"La persona indicó género/sexo: {gender}; sus pronombres elegidos son: {pronouns}. "
-            "Respeta siempre sus pronombres y no hagas suposiciones adicionales. "
-            "Aceptas matemáticas: sumas, restas, multiplicaciones, divisiones, álgebra, ecuaciones y problemas. "
-            "Guía paso a paso y explica por qué con analogías sencillas. "
-            "No des solo el resultado sin explicación. Si pide pista, da una pista y una pregunta sencilla. "
-            "Usa un tono amable, claro y breve. Puedes incluir emojis en el texto."
+            f"Eres Dumiluv, una tutora personal de matemáticas para {display}. "
+            f"Pronombres elegidos: {pronouns}. Dato opcional de género: {gender}. "
+            "Usa el nombre de la persona de forma natural, especialmente al saludar o animarla, sin repetirlo en cada frase. "
+            "TU ESPECIALIDAD EXCLUSIVA es matemáticas: aritmética, fracciones, porcentajes, potencias, raíces, álgebra, lenguaje algebraico, expresiones, ecuaciones, despejes, sistemas, funciones, geometría, trigonometría, estadística y problemas que se resuelvan con matemáticas. "
+            "Si preguntan algo ajeno a matemáticas, explica amablemente que tu función es enseñar matemáticas; si existe una conexión matemática clara, explica solo esa conexión. No respondas como asistente general. "
+            "MÉTODO INTERACTIVO: cuando te den un ejercicio, primero identifica qué se busca y explica brevemente la idea. Después plantea UN SOLO PASO y haz UNA pregunta concreta para que el estudiante lo intente. Espera su respuesta antes de avanzar. No reveles el resultado final ni todos los pasos de golpe, salvo que la persona pida explícitamente la solución completa. "
+            "Cuando responda, revisa si su paso es correcto. Si acertó, felicítale brevemente y continúa con el siguiente paso. Si se equivoca, señala qué parte debe revisar, da una pista y permite que lo intente otra vez. Si sigue sin entender, explica ese paso con palabras sencillas y un ejemplo pequeño, y luego vuelve al ejercicio. "
+            "En ecuaciones, trabaja una transformación por turno: por ejemplo, pregunta qué operación deshace una suma, luego comprueba el despeje y después continúa. Explica por qué se hace cada operación y conserva la igualdad en ambos lados. Comprueba el resultado al final. "
+            "Traduce lenguaje cotidiano a lenguaje algebraico y al revés. Define las variables; explica qué significa 'el doble de un número más cinco' y cómo se representa. Distingue frases como 'el doble de la suma' y 'el doble de un número más cinco'. "
+            "Si el mensaje es una respuesta a tu pregunta anterior, interpreta el contexto y evalúa ese intento, no empieces otro ejercicio. Mantén el hilo y recuerda los pasos anteriores. "
+            "Tono cercano, paciente, motivador y claro. Usa español sencillo, formato legible y emojis moderados. Nunca inventes que el estudiante acertó: calcula y verifica. Si hay varias interpretaciones, pregunta. "
         )
         msgs = [{"role": "system", "content": system_prompt}] + st.session_state.messages
         response = client.chat.completions.create(
@@ -332,11 +339,12 @@ if not st.session_state.usuario:
     st.markdown("<div class='dumi-panel' style='max-width:760px;margin:auto;text-align:center;'>"
                 "<div style='font-size:48px;'>🐻‍❄️💗</div>"
                 "<h2>Tu rinconcito para aprender</h2>"
-                "<p>Inicia sesión o crea tu cuenta para entrar a Dumiluv.</p></div>",
+                "<p>Inicia sesión, crea tu cuenta o entra como invitado.</p></div>",
                 unsafe_allow_html=True)
     st.write("")
     tab_login, tab_create = st.tabs(["💗 Entrar", "🌷 Crear cuenta"])
     data = load_data()
+
     with tab_login:
         st.markdown("<div class='dumi-panel'>", unsafe_allow_html=True)
         username = st.text_input("Usuario", key="login_user")
@@ -403,14 +411,38 @@ if not st.session_state.usuario:
                 st.session_state.messages = []
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
+
+    st.write("")
+    st.markdown("<div class='dumi-panel' style='text-align:center;'>¿Solo quieres probarla? No necesitas registrarte.</div>", unsafe_allow_html=True)
+    if st.button("Entrar sin cuenta 🌷", use_container_width=True):
+        st.session_state.usuario = "Invitado-" + str(uuid.uuid4())[:8]
+        st.session_state.nombre_display = "Invitado"
+        st.session_state.genero = "Prefiero no decirlo"
+        st.session_state.pronombres = "Neutros (elle)"
+        st.session_state.invitado = True
+        st.session_state.conv_id = None
+        st.session_state.messages = []
+        st.session_state.active_view = "chat"
+        st.rerun()
+
+    st.markdown("### 💌 Avisos, fallos y sugerencias")
+    st.caption("Puedes escribir al equipo de Dumiluv desde tu aplicación de correo:")
+    support_emails = ["7001467@etrr.edux", "7001464@etrr.edu.mx", "7001451@etrr.edu.mx", "7001529@etrr.edu.mx"]
+    for address in support_emails:
+        st.markdown(f"- [{address}](mailto:{address}?subject=Aviso%20o%20sugerencia%20para%20Dumiluv)")
     st.stop()
 
 # ---------- Cargar datos de la cuenta ----------
 data = load_data()
-user_info = ensure_user_record(data, st.session_state.usuario)
-save_data(data)
-convs = user_info.get("convs", {})
-avatar_path = user_info.get("avatar_path", "")
+if st.session_state.get("invitado", False):
+    user_info = {}
+    convs = {}
+    avatar_path = ""
+else:
+    user_info = ensure_user_record(data, st.session_state.usuario)
+    save_data(data)
+    convs = user_info.get("convs", {})
+    avatar_path = user_info.get("avatar_path", "")
 user_avatar = image_data_uri(avatar_path)
 assistant_avatar = image_data_uri("dumiluv.png")
 
@@ -419,7 +451,7 @@ st.markdown(
     f"<div class='dumi-top'>🌷 Dumiluv <span style='font-size:15px;'>· {safe_text(st.session_state.nombre_display)} 💗</span></div>",
     unsafe_allow_html=True
 )
-nav1, nav2, nav3, nav4, nav5 = st.columns(5)
+nav1, nav2, nav3, nav4 = st.columns(4)
 with nav1:
     if st.button("💬 Chat", use_container_width=True):
         st.session_state.active_view = "chat"
@@ -433,23 +465,21 @@ with nav2:
         st.session_state.show_notas = False
         st.rerun()
 with nav3:
-    if st.button("📒 Notas", use_container_width=True):
-        st.session_state.active_view = "notes"
-        st.session_state.show_notas = True
-        st.session_state.show_ajustes = False
-        st.rerun()
-with nav4:
     if st.button("➕ Nuevo chat", use_container_width=True):
         nueva_conversacion()
         st.session_state.active_view = "chat"
         st.rerun()
-with nav5:
+with nav4:
     if st.button("Salir", use_container_width=True):
         st.session_state.usuario = ""
+        st.session_state.invitado = False
+        st.session_state.nombre_display = ""
         st.session_state.messages = []
         st.session_state.conv_id = None
+        st.session_state.active_view = "chat"
         st.rerun()
-        # ---------- Ajustes ----------
+
+# ---------- Ajustes ----------
 if st.session_state.active_view == "settings":
     st.markdown("<div class='dumi-panel'><div class='dumi-section'>⚙️ Ajustes de tu perfil</div>", unsafe_allow_html=True)
     st.write("")
@@ -555,6 +585,28 @@ else:
     with center:
         st.markdown("<div class='dumi-panel'>", unsafe_allow_html=True)
         st.markdown("<div class='dumi-section'>💗 Conversación</div>", unsafe_allow_html=True)
+        with st.expander("📒 Mis notas y dibujos (están aquí arriba del chat)", expanded=False):
+            note_titles = [page["title"] for page in st.session_state.notas_pages]
+            chosen_note = st.selectbox("Hoja", note_titles, index=min(st.session_state.notas_idx, len(note_titles)-1), key="chat_note_select")
+            st.session_state.notas_idx = note_titles.index(chosen_note)
+            note_col1, note_col2 = st.columns(2)
+            with note_col1:
+                if st.button("➕ Nueva hoja", key="chat_new_note", use_container_width=True):
+                    new_id = str(uuid.uuid4())[:6]
+                    st.session_state.notas_pages.append({"id": new_id, "title": f"Hoja {len(st.session_state.notas_pages)+1}", "text": ""})
+                    st.session_state.notas_idx = len(st.session_state.notas_pages)-1
+                    st.rerun()
+            with note_col2:
+                if st.button("🗑️ Borrar hoja", key="chat_delete_note", use_container_width=True):
+                    if len(st.session_state.notas_pages) > 1:
+                        st.session_state.notas_pages.pop(st.session_state.notas_idx)
+                        st.session_state.notas_idx = 0
+                        st.rerun()
+            active_note = st.session_state.notas_pages[st.session_state.notas_idx]
+            active_note["text"] = st.text_area("Apunta aquí mientras lees el ejercicio", value=active_note["text"], height=120, key=f"chat_note_text_{active_note['id']}")
+            st.caption("También puedes dibujar operaciones o esquemas:")
+            note_tool = st.radio("Herramienta", ["Lápiz", "Borrador"], horizontal=True, key="chat_note_tool")
+            st_canvas(stroke_width=3 if note_tool == "Lápiz" else 18, stroke_color="#4d3b59" if note_tool == "Lápiz" else "#ffffff", background_color="#ffffff", height=190, drawing_mode="freedraw", key=f"chat_canvas_{active_note['id']}")
         render_chat(st.session_state.messages, user_avatar, assistant_avatar, st.session_state.nombre_display)
 
         if not st.session_state.messages:
@@ -577,14 +629,12 @@ else:
                     st.rerun()
 
         st.write("")
-        input_col, send_col = st.columns([5, 1])
-        with input_col:
+        with st.form("chat_message_form", clear_on_submit=True):
             user_text = st.text_input("Mensaje", placeholder="Escribe un mensaje... 💗", label_visibility="collapsed", key="chat_input")
-        with send_col:
-            if st.button("Enviar", use_container_width=True):
-                if user_text.strip():
-                    send_message(user_text)
-                    st.rerun()
+            submitted = st.form_submit_button("Enviar 💗", use_container_width=True)
+        if submitted and user_text.strip():
+            send_message(user_text)
+            st.rerun()
 
         voice_col1, voice_col2 = st.columns([1, 3])
         with voice_col1:
@@ -606,6 +656,8 @@ else:
     with right:
         st.markdown("<div class='dumi-panel'>", unsafe_allow_html=True)
         st.markdown("<div class='dumi-section'>🕘 Chat History</div>", unsafe_allow_html=True)
+        if st.session_state.get("invitado", False):
+            st.caption("Modo invitado: el historial no se guarda al salir.")
         if st.button("＋ Empezar conversación", use_container_width=True):
             nueva_conversacion()
             st.rerun()
@@ -625,3 +677,12 @@ else:
                 st.session_state.active_view = "chat"
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ---------- Contacto para fallos y sugerencias ----------
+st.markdown("<div class='dumi-panel' style='margin-top:14px;'>", unsafe_allow_html=True)
+st.markdown("### 💌 ¿Encontraste un fallo o tienes una sugerencia?")
+st.caption("Escribe al equipo de Dumiluv. Se abrirá tu aplicación de correo.")
+for address in ["7001467@etrr.edux", "7001464@etrr.edu.mx", "7001451@etrr.edu.mx", "7001529@etrr.edu.mx"]:
+    st.markdown(f"- [{address}](mailto:{address}?subject=Fallo%20o%20sugerencia%20para%20Dumiluv)")
+st.markdown("</div>", unsafe_allow_html=True)
